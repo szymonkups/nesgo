@@ -1,4 +1,4 @@
-package cpu
+package core
 
 // CPU represents 6502 processor
 type CPU struct {
@@ -20,8 +20,14 @@ type CPU struct {
 	// Processor status flags
 	p uint8
 
-	// Additional cycles to perform
-	cycles uint8
+	// Additional cycles to perform on current instruction
+	cyclesLeft uint8
+
+	// Instructions lookup table
+	instLookup map[uint8]*instruction
+
+	// Data bus to which CPU is connected
+	bus *Bus
 }
 
 type flag uint8
@@ -45,7 +51,20 @@ const (
 	n flag = 7
 )
 
-var inst = map[uint8]instruction{}
+// NewCPU performs cpu initialization
+func NewCPU(bus *Bus) CPU {
+	cpu := CPU{}
+	cpu.bus = bus
+
+	cpu.instLookup = map[uint8]*instruction{}
+	for _, inst := range instructions {
+		for opCode := range inst.opCodes {
+			cpu.instLookup[opCode] = inst
+		}
+	}
+
+	return cpu
+}
 
 func (cpu *CPU) setFlag(fn flag, v bool) {
 	var flag uint8 = 1 << fn
@@ -59,15 +78,16 @@ func (cpu *CPU) setFlag(fn flag, v bool) {
 
 // Clock - execute single clock cycle
 func (cpu *CPU) Clock() {
-	if cpu.cycles == 123 {
+	if cpu.cyclesLeft == 0 {
 		// 1. Read opcode
-		// opCode := uint8(0x00)
-		// instruction, ok := inst[opCode]
+		opCode := cpu.bus.read(cpu.pc)
+		instruction, ok := cpu.instLookup[opCode]
 
 		// Unknown opcode - quit
-		// if !ok {
-		// return
-		// }
+		if !ok {
+			// TODO: Think what to do here
+			return
+		}
 
 		// 2. Set unused flag to 1
 		cpu.setFlag(u, true)
@@ -76,16 +96,19 @@ func (cpu *CPU) Clock() {
 		cpu.pc++
 
 		// 4. Execute instruction
-		// cpu.cycles = instruction.noCycles
+		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
+		data, addCycleAddr := instruction.opCodes[opCode].addrMode(cpu)
+		addCycleHandler := instruction.handler(cpu, data)
 
 		// We might need to add additional cycle
-		// if instruction.addrMode() && instruction.handler(cpu) {
-		// 	cpu.cycles++
-		// }
+		if addCycleAddr && addCycleHandler {
+			cpu.cyclesLeft++
+		}
 
 		// 5. Set back unused flat to 1
 		cpu.setFlag(u, true)
 	}
 
-	cpu.cycles--
+	// One cycle done
+	cpu.cyclesLeft--
 }

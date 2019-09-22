@@ -1,4 +1,8 @@
-package cpu
+package core
+
+var instructions = []*instruction{
+	&and, &inx, &iny,
+}
 
 // Instruction - describes instruction
 type instruction struct {
@@ -37,6 +41,14 @@ var and = instruction{
 		0x39: {absoluteYAddr, 4},
 		0x21: {indirectXAddr, 6},
 		0x31: {indirectYAddr, 4},
+	},
+	handler: func(cpu *CPU, data uint8) bool {
+		cpu.a = cpu.a & data
+
+		cpu.setFlag(z, cpu.a == 0x00)
+		cpu.setFlag(n, cpu.a&0x80 != 0)
+
+		return true
 	},
 }
 

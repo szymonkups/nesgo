@@ -1,10 +1,12 @@
 package main
 
 import (
-	"github.com/szymonkups/nesgo/cpu"
+	"github.com/szymonkups/nesgo/core"
 )
 
 func main() {
-	cpu := cpu.CPU{}
+	bus := new(core.Bus)
+	cpu := core.NewCPU(bus)
+
 	cpu.Clock()
 }
