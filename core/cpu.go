@@ -39,7 +39,7 @@ const (
 	z flag = 1
 	// Interrupt disable
 	i flag = 2
-	// Deciman mode
+	// Decimal mode
 	d flag = 3
 	// Break command
 	b flag = 4
@@ -96,9 +96,10 @@ func (cpu *CPU) Clock() {
 		cpu.pc++
 
 		// 4. Execute instruction
+		addrMode := instruction.opCodes[opCode].addrMode
 		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
-		data, addCycleAddr := instruction.opCodes[opCode].addrMode(cpu)
-		addCycleHandler := instruction.handler(cpu, data)
+		data, addCycleAddr := addrMode(cpu)
+		addCycleHandler := instruction.handler(cpu, data, opCode, addrMode)
 
 		// We might need to add additional cycle
 		if addCycleAddr && addCycleHandler {

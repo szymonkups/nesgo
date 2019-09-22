@@ -9,10 +9,10 @@ type instruction struct {
 	// Human readable name - for debugging
 	name string
 
-	// Op codes op code per adrresing mode
+	// Op codes op code per addressing mode
 	opCodes opCodesMap
 
-	// Istruction handler
+	// Instruction handler
 	handler instructionHandler
 }
 
@@ -22,8 +22,13 @@ type opCodesMap map[uint8]struct {
 }
 
 // Actual instruction code. It should return true if there is a potential to
-// add additional clock cycle
-type instructionHandler func(*CPU, uint8) bool
+// add additional clock cycle - this will be checked together with addressing
+// mode result. If both return true it will mean that one cycle needs to be
+// added to instruction cycles.
+// We pass CPU instance, data fetched by correct addresing mode, actual op code
+// (as same instruction can have different op codes depending on addressing mode)
+// and addresing mode itself.
+type instructionHandler func(cpu *CPU, data uint8, opCode uint8, addrMode addressingMode) bool
 
 // *****************************************************************************
 // Instructions
@@ -42,7 +47,7 @@ var and = instruction{
 		0x21: {indirectXAddr, 6},
 		0x31: {indirectYAddr, 4},
 	},
-	handler: func(cpu *CPU, data uint8) bool {
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
 		cpu.a = cpu.a & data
 
 		cpu.setFlag(z, cpu.a == 0x00)
@@ -58,7 +63,7 @@ var inx = instruction{
 	opCodes: opCodesMap{
 		0xE8: {impliedAddr, 2},
 	},
-	handler: func(cpu *CPU, _ uint8) bool {
+	handler: func(cpu *CPU, _ uint8, op uint8, addrMod addressingMode) bool {
 		cpu.x++
 
 		cpu.setFlag(z, cpu.x == 0x00)
@@ -74,7 +79,7 @@ var iny = instruction{
 	opCodes: opCodesMap{
 		0xC8: {impliedAddr, 2},
 	},
-	handler: func(cpu *CPU, _ uint8) bool {
+	handler: func(cpu *CPU, _ uint8, op uint8, addrMod addressingMode) bool {
 		cpu.y++
 
 		cpu.setFlag(z, cpu.y == 0x00)
