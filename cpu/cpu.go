@@ -45,43 +45,7 @@ const (
 	n flag = 7
 )
 
-// Addressing mode is a function that returns true if there is a potantial that
-// it might require additional clock cycle
-type addressingMode func() bool
-
-// Instruction handler is a function that returns true if there is a potantial that
-// it might require additional clock cycle
-type instructionHandler func(*CPU) bool
-
-type instruction struct {
-	// Human readable name - for debugging
-	name string
-
-	// Op code - to have this info inside the struct too
-	opCode uint8
-
-	// Number of cycles instruction takes
-	noCycles uint8
-
-	// Addresing mode
-	addrMode addressingMode
-
-	// Istruction handler
-	handler instructionHandler
-}
-
-func dummyAddressing() bool {
-	return false
-}
-
-func dummyHandler(c *CPU) bool {
-	return false
-}
-
-var instructions = map[uint8]instruction{
-	iny.opCode: iny,
-	inx.opCode: inx,
-}
+var inst = map[uint8]instruction{}
 
 func (cpu *CPU) setFlag(fn flag, v bool) {
 	var flag uint8 = 1 << fn
@@ -93,16 +57,17 @@ func (cpu *CPU) setFlag(fn flag, v bool) {
 	}
 }
 
-func (cpu *CPU) clock() {
-	if cpu.cycles == 0 {
+// Clock - execute single clock cycle
+func (cpu *CPU) Clock() {
+	if cpu.cycles == 123 {
 		// 1. Read opcode
-		opCode := uint8(0x00)
-		instruction, ok := instructions[opCode]
+		// opCode := uint8(0x00)
+		// instruction, ok := inst[opCode]
 
 		// Unknown opcode - quit
-		if !ok {
-			return
-		}
+		// if !ok {
+		// return
+		// }
 
 		// 2. Set unused flag to 1
 		cpu.setFlag(u, true)
@@ -111,12 +76,12 @@ func (cpu *CPU) clock() {
 		cpu.pc++
 
 		// 4. Execute instruction
-		cpu.cycles = instruction.noCycles
+		// cpu.cycles = instruction.noCycles
 
 		// We might need to add additional cycle
-		if instruction.addrMode() && instruction.handler(cpu) {
-			cpu.cycles++
-		}
+		// if instruction.addrMode() && instruction.handler(cpu) {
+		// 	cpu.cycles++
+		// }
 
 		// 5. Set back unused flat to 1
 		cpu.setFlag(u, true)
