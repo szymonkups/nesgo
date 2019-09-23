@@ -65,7 +65,30 @@ func NewCPU(bus *Bus) CPU {
 		}
 	}
 
+	cpu.Reset()
+
 	return cpu
+}
+
+// Reset - resets cpu to known state
+func (cpu *CPU) Reset() {
+	// Reset registers
+	cpu.a = 0
+	cpu.x = 0
+	cpu.y = 0
+	cpu.sp = 0xFD
+	cpu.p = 0
+	cpu.setFlag(uFLag, true)
+
+	// Stack pointer is initialized to address found under 0xFFFC
+	// Where start address is stored
+	addr := uint16(0xFFFC)
+	low := uint16(cpu.bus.read(addr))
+	high := uint16(cpu.bus.read(addr + 1))
+	cpu.pc = (high << 8) | low
+
+	// Assuming that resetting takes time
+	cpu.cyclesLeft = 8
 }
 
 func (cpu *CPU) setFlag(f flag, v bool) {
@@ -82,6 +105,11 @@ func (cpu *CPU) getFlag(f flag) bool {
 	var flag uint8 = 1 << f
 
 	return (cpu.p & flag) != 0
+}
+
+func (cpu *CPU) pushToStack(data uint8) {
+	cpu.bus.write(0x0100+uint16(cpu.sp), data)
+	cpu.sp--
 }
 
 // Clock - execute single clock cycle
@@ -106,8 +134,8 @@ func (cpu *CPU) Clock() {
 		// 4. Execute instruction
 		addrMode := instruction.opCodes[opCode].addrMode
 		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
-		data, addCycleAddr := addrMode(cpu)
-		addCycleHandler := instruction.handler(cpu, data, opCode, addrMode)
+		address, addCycleAddr := addressingModes[addrMode](cpu)
+		addCycleHandler := instruction.handler(cpu, address, opCode, addrMode)
 
 		// We might need to add additional cycle
 		if addCycleAddr && addCycleHandler {
