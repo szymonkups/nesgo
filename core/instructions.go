@@ -1,7 +1,13 @@
 package core
 
+// Instruction set
+// ADC AND ASL BCC BCS BEQ BIT BMI BNE BPL BRK BVC BVS CLC
+// CLD CLI CLV CMP CPX CPY DEC DEX DEY EOR INC INX INY JMP
+// JSR LDA LDX LDY LSR NOP ORA PHA PHP PLA PLP ROL ROR RTI
+// RTS SBC SEC SED SEI STA STX STY TAX TAY TSX TXA TXS TYA
 var instructions = []*instruction{
-	&and, &inx, &iny,
+	&and, &bcc, &bcs, &beq, &bmi, &bne, &bpl, &bvc, &bvs, &clc,
+	&cld, &cli, &clv, &inx, &iny,
 }
 
 // Instruction - describes instruction
@@ -102,21 +108,6 @@ var beq = instruction{
 	},
 }
 
-// BNE - Branch if no equal - zero flag is not set
-var bne = instruction{
-	name: "BNE",
-	opCodes: opCodesMap{
-		0xD0: {relativeAddr, 2},
-	},
-	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
-		if !cpu.getFlag(zFLag) {
-			branchHandler(cpu, data)
-		}
-
-		return false
-	},
-}
-
 // BMI - Branch if minus - negative flag is set
 var bmi = instruction{
 	name: "BMI",
@@ -125,6 +116,21 @@ var bmi = instruction{
 	},
 	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
 		if cpu.getFlag(nFLag) {
+			branchHandler(cpu, data)
+		}
+
+		return false
+	},
+}
+
+// BNE - Branch if no equal - zero flag is not set
+var bne = instruction{
+	name: "BNE",
+	opCodes: opCodesMap{
+		0xD0: {relativeAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		if !cpu.getFlag(zFLag) {
 			branchHandler(cpu, data)
 		}
 
@@ -223,6 +229,58 @@ var iny = instruction{
 
 		cpu.setFlag(zFLag, cpu.y == 0x00)
 		cpu.setFlag(nFLag, cpu.y&0b10000000 != 0)
+
+		return false
+	},
+}
+
+// CLC - Clear carry flag
+var clc = instruction{
+	name: "CLC",
+	opCodes: opCodesMap{
+		0x18: {impliedAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		cpu.setFlag(cFlag, false)
+
+		return false
+	},
+}
+
+// CLD - Clear decimal flag
+var cld = instruction{
+	name: "CLD",
+	opCodes: opCodesMap{
+		0xD8: {impliedAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		cpu.setFlag(dFLag, false)
+
+		return false
+	},
+}
+
+// CLI - Clear interrupt flag (disable interrupts)
+var cli = instruction{
+	name: "CLI",
+	opCodes: opCodesMap{
+		0x58: {impliedAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		cpu.setFlag(iFLag, false)
+
+		return false
+	},
+}
+
+// CLV - Clear overflow flag
+var clv = instruction{
+	name: "CLV",
+	opCodes: opCodesMap{
+		0xB8: {impliedAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		cpu.setFlag(vFLag, false)
 
 		return false
 	},
