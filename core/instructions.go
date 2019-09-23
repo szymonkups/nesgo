@@ -7,7 +7,7 @@ package core
 // RTS SBC SEC SED SEI STA STX STY TAX TAY TSX TXA TXS TYA
 var instructions = []*instruction{
 	&adc, &and, &asl, &bcc, &bcs, &beq, &bit, &bmi, &bne, &bpl, &brk, &bvc, &bvs, &clc,
-	&cld, &cli, &clv, &inx, &iny,
+	&cld, &cli, &cmp, &cpx, &cpy, &clv, &inx, &iny,
 }
 
 // Instruction - describes instruction
@@ -402,4 +402,63 @@ var clv = instruction{
 
 		return false
 	},
+}
+
+// CMP - Compare accumulator
+var cmp = instruction{
+	name: "CMP",
+	opCodes: opCodesMap{
+		0xC9: {immediateAddressing, 2},
+		0xC5: {zeroPageAddressing, 3},
+		0xD5: {zeroPageXAddressing, 4},
+		0xCD: {absoluteAddressing, 4},
+		0xDD: {absoluteXAddressing, 4},
+		0xD9: {absoluteYAddressing, 4},
+		0xC1: {indirectXAddressing, 6},
+		0xD1: {indirectYAddressing, 5},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		compareHandler(cpu, cpu.a, addr)
+
+		return true
+	},
+}
+
+// CPX - Compare X register
+var cpx = instruction{
+	name: "CPX",
+	opCodes: opCodesMap{
+		0xE0: {immediateAddressing, 2},
+		0xE4: {zeroPageAddressing, 3},
+		0xEC: {absoluteAddressing, 4},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		compareHandler(cpu, cpu.x, addr)
+
+		return false
+	},
+}
+
+// CPY - Compare Y register
+var cpy = instruction{
+	name: "CPY",
+	opCodes: opCodesMap{
+		0xC0: {immediateAddressing, 2},
+		0xC4: {zeroPageAddressing, 3},
+		0xCC: {absoluteAddressing, 4},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		compareHandler(cpu, cpu.y, addr)
+
+		return false
+	},
+}
+
+func compareHandler(cpu *CPU, a byte, addr uint16) {
+	data := cpu.bus.read(addr)
+	diff := a - data
+
+	cpu.setFlag(cFlag, a >= data)
+	cpu.setFlag(zFLag, diff == 0)
+	cpu.setFlag(nFLag, diff&0x80 != 0)
 }
