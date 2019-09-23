@@ -7,7 +7,7 @@ package core
 // RTS SBC SEC SED SEI STA STX STY TAX TAY TSX TXA TXS TYA
 var instructions = []*instruction{
 	&adc, &and, &asl, &bcc, &bcs, &beq, &bit, &bmi, &bne, &bpl, &brk, &bvc, &bvs, &clc,
-	&cld, &cli, &cmp, &cpx, &cpy, &clv, &inx, &iny,
+	&cld, &cli, &clv, &cmp, &cpx, &cpy, &dec, &dex, &dey, &inx, &iny,
 }
 
 // Instruction - describes instruction
@@ -461,4 +461,57 @@ func compareHandler(cpu *CPU, a byte, addr uint16) {
 	cpu.setFlag(cFlag, a >= data)
 	cpu.setFlag(zFLag, diff == 0)
 	cpu.setFlag(nFLag, diff&0x80 != 0)
+}
+
+// DEC - decrement memory
+var dec = instruction{
+	name: "DEC",
+	opCodes: opCodesMap{
+		0xC6: {zeroPageAddressing, 5},
+		0xD6: {zeroPageXAddressing, 6},
+		0xCE: {absoluteAddressing, 6},
+		0xDE: {absoluteXAddressing, 7},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		data := cpu.bus.read(addr)
+		data--
+		cpu.bus.write(addr, data)
+
+		cpu.setFlag(zFLag, data == 0)
+		cpu.setFlag(nFLag, data&0x80 != 0)
+
+		return false
+	},
+}
+
+// DEX - decrement X register
+var dex = instruction{
+	name: "DEX",
+	opCodes: opCodesMap{
+		0xCA: {impliedAddressing, 2},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.x--
+
+		cpu.setFlag(zFLag, cpu.x == 0)
+		cpu.setFlag(nFLag, cpu.x&0x80 != 0)
+
+		return false
+	},
+}
+
+// DEY - decrement Y register
+var dey = instruction{
+	name: "DEY",
+	opCodes: opCodesMap{
+		0x88: {impliedAddressing, 2},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.y--
+
+		cpu.setFlag(zFLag, cpu.y == 0)
+		cpu.setFlag(nFLag, cpu.y&0x80 != 0)
+
+		return false
+	},
 }
