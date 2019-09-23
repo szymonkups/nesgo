@@ -7,7 +7,7 @@ package core
 // RTS SBC SEC SED SEI STA STX STY TAX TAY TSX TXA TXS TYA
 var instructions = []*instruction{
 	&adc, &and, &asl, &bcc, &bcs, &beq, &bit, &bmi, &bne, &bpl, &brk, &bvc, &bvs, &clc,
-	&cld, &cli, &clv, &cmp, &cpx, &cpy, &dec, &dex, &dey, &inx, &iny,
+	&cld, &cli, &clv, &cmp, &cpx, &cpy, &dec, &dex, &dey, &eor, &eor, &inx, &iny,
 }
 
 // Instruction - describes instruction
@@ -352,6 +352,27 @@ var iny = instruction{
 	},
 }
 
+// INC - Increment memory location
+var inc = instruction{
+	name: "INC",
+	opCodes: opCodesMap{
+		0xE6: {zeroPageAddressing, 5},
+		0xF6: {zeroPageXAddressing, 6},
+		0xEE: {absoluteAddressing, 6},
+		0xFE: {absoluteXAddressing, 7},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		data := cpu.bus.read(addr)
+		data++
+		cpu.bus.write(addr, data)
+
+		cpu.setFlag(zFLag, data == 0x00)
+		cpu.setFlag(nFLag, data&0b10000000 != 0)
+
+		return false
+	},
+}
+
 // CLC - Clear carry flag
 var clc = instruction{
 	name: "CLC",
@@ -513,5 +534,29 @@ var dey = instruction{
 		cpu.setFlag(nFLag, cpu.y&0x80 != 0)
 
 		return false
+	},
+}
+
+// EOR - Exclusive OR
+var eor = instruction{
+	name: "EOR",
+	opCodes: opCodesMap{
+		0x49: {immediateAddressing, 2},
+		0x45: {zeroPageAddressing, 3},
+		0x55: {zeroPageXAddressing, 4},
+		0x4D: {absoluteAddressing, 4},
+		0x5D: {absoluteXAddressing, 4},
+		0x59: {absoluteYAddressing, 4},
+		0x41: {indirectXAddressing, 6},
+		0x51: {indirectYAddressing, 5},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		data := cpu.bus.read(addr)
+		cpu.a = cpu.a ^ data
+
+		cpu.setFlag(zFLag, cpu.a == 0x00)
+		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
+
+		return true
 	},
 }
