@@ -34,24 +34,26 @@ type flag uint8
 
 const (
 	// Carry
-	c flag = 0
+	cFlag flag = 0
 	// Zero
-	z flag = 1
+	zFLag flag = 1
 	// Interrupt disable
-	i flag = 2
+	iFLag flag = 2
 	// Decimal mode
-	d flag = 3
+	dFLag flag = 3
 	// Break command
-	b flag = 4
+	bFLag flag = 4
 	// Unused flag, in processor's manual called "expansion bit", always set to 1
-	u flag = 5
+	uFLag flag = 5
 	// Overflow flag
-	v flag = 6
+	vFLag flag = 6
 	// Negative flag
-	n flag = 7
+	nFLag flag = 7
 )
 
 // NewCPU performs cpu initialization
+// TODO: use single lookup for all cpu instances, use init() method for package
+// to initialize it
 func NewCPU(bus *Bus) CPU {
 	cpu := CPU{}
 	cpu.bus = bus
@@ -66,14 +68,20 @@ func NewCPU(bus *Bus) CPU {
 	return cpu
 }
 
-func (cpu *CPU) setFlag(fn flag, v bool) {
-	var flag uint8 = 1 << fn
+func (cpu *CPU) setFlag(f flag, v bool) {
+	var flag uint8 = 1 << f
 
 	if v {
 		cpu.p |= flag
 	} else {
 		cpu.p &= ^flag
 	}
+}
+
+func (cpu *CPU) getFlag(f flag) bool {
+	var flag uint8 = 1 << f
+
+	return (cpu.p & flag) != 0
 }
 
 // Clock - execute single clock cycle
@@ -90,7 +98,7 @@ func (cpu *CPU) Clock() {
 		}
 
 		// 2. Set unused flag to 1
-		cpu.setFlag(u, true)
+		cpu.setFlag(uFLag, true)
 
 		// 3. Increment Program Counter
 		cpu.pc++
@@ -107,7 +115,7 @@ func (cpu *CPU) Clock() {
 		}
 
 		// 5. Set back unused flat to 1
-		cpu.setFlag(u, true)
+		cpu.setFlag(uFLag, true)
 	}
 
 	// One cycle done

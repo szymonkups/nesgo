@@ -50,11 +50,150 @@ var and = instruction{
 	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
 		cpu.a = cpu.a & data
 
-		cpu.setFlag(z, cpu.a == 0x00)
-		cpu.setFlag(n, cpu.a&0x80 != 0)
+		cpu.setFlag(zFLag, cpu.a == 0x00)
+		cpu.setFlag(nFLag, cpu.a&0b10000000 != 0)
 
 		return true
 	},
+}
+
+// BCC - Branch if carry is clear
+var bcc = instruction{
+	name: "BCC",
+	opCodes: opCodesMap{
+		0x90: {relativeAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		if !cpu.getFlag(cFlag) {
+			branchHandler(cpu, data)
+		}
+
+		return false
+	},
+}
+
+// BCS - Branch if carry is set
+var bcs = instruction{
+	name: "BCS",
+	opCodes: opCodesMap{
+		0xB0: {relativeAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		if cpu.getFlag(cFlag) {
+			branchHandler(cpu, data)
+		}
+
+		return false
+	},
+}
+
+// BEQ - Branch if equal - zero flag is set
+var beq = instruction{
+	name: "BEQ",
+	opCodes: opCodesMap{
+		0xF0: {relativeAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		if cpu.getFlag(zFLag) {
+			branchHandler(cpu, data)
+		}
+
+		return false
+	},
+}
+
+// BNE - Branch if no equal - zero flag is not set
+var bne = instruction{
+	name: "BNE",
+	opCodes: opCodesMap{
+		0xD0: {relativeAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		if !cpu.getFlag(zFLag) {
+			branchHandler(cpu, data)
+		}
+
+		return false
+	},
+}
+
+// BMI - Branch if minus - negative flag is set
+var bmi = instruction{
+	name: "BMI",
+	opCodes: opCodesMap{
+		0x30: {relativeAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		if cpu.getFlag(nFLag) {
+			branchHandler(cpu, data)
+		}
+
+		return false
+	},
+}
+
+// BPL - Branch if positive - negative flag is not set
+var bpl = instruction{
+	name: "BPL",
+	opCodes: opCodesMap{
+		0x10: {relativeAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		if !cpu.getFlag(nFLag) {
+			branchHandler(cpu, data)
+		}
+
+		return false
+	},
+}
+
+// BVC - Branch if overflow clear
+var bvc = instruction{
+	name: "BVC",
+	opCodes: opCodesMap{
+		0x50: {relativeAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		if !cpu.getFlag(vFLag) {
+			branchHandler(cpu, data)
+		}
+
+		return false
+	},
+}
+
+// BVS - Branch if overflow is set
+var bvs = instruction{
+	name: "BVS",
+	opCodes: opCodesMap{
+		0x70: {relativeAddr, 2},
+	},
+	handler: func(cpu *CPU, data uint8, op uint8, addrMod addressingMode) bool {
+		if cpu.getFlag(vFLag) {
+			branchHandler(cpu, data)
+		}
+
+		return false
+	},
+}
+
+func branchHandler(cpu *CPU, data uint8) {
+	cpu.cyclesLeft++
+
+	abs := uint16(toAbs(data))
+	tmp := cpu.pc
+	if isNegative(data) {
+		tmp -= abs
+	} else {
+		tmp += abs
+	}
+
+	// Page might be crossed - add one cycle if that happens
+	if (tmp & 0xFF00) != (cpu.pc & 0xFF00) {
+		cpu.cyclesLeft++
+	}
+
+	cpu.pc = tmp
 }
 
 // INX - Increment X register by one
@@ -66,8 +205,8 @@ var inx = instruction{
 	handler: func(cpu *CPU, _ uint8, op uint8, addrMod addressingMode) bool {
 		cpu.x++
 
-		cpu.setFlag(z, cpu.x == 0x00)
-		cpu.setFlag(n, cpu.x&0x80 != 0)
+		cpu.setFlag(zFLag, cpu.x == 0x00)
+		cpu.setFlag(nFLag, cpu.x&0b10000000 != 0)
 
 		return false
 	},
@@ -82,8 +221,8 @@ var iny = instruction{
 	handler: func(cpu *CPU, _ uint8, op uint8, addrMod addressingMode) bool {
 		cpu.y++
 
-		cpu.setFlag(z, cpu.y == 0x00)
-		cpu.setFlag(n, cpu.y&0x80 != 0)
+		cpu.setFlag(zFLag, cpu.y == 0x00)
+		cpu.setFlag(nFLag, cpu.y&0b10000000 != 0)
 
 		return false
 	},

@@ -64,16 +64,9 @@ func zeroPageYAddr(cpu *CPU) (uint8, bool) {
 // from PC, otherwise we add it.
 func relativeAddr(cpu *CPU) (uint8, bool) {
 	uOffset := cpu.bus.read(cpu.pc)
-	offset := uint16(uOffset & 0b01111111)
 	cpu.pc++
 
-	if (uOffset & 0b10000000) != 0 {
-		cpu.pc -= offset
-	} else {
-		cpu.pc += offset
-	}
-
-	return 0, false
+	return uOffset, false
 }
 
 // Absolute addressing - next two bytes represents lower and higher bytes
