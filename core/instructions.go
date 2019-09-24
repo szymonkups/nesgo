@@ -31,9 +31,9 @@ type opCodesMap map[uint8]struct {
 // add additional clock cycle - this will be checked together with addressing
 // mode result. If both return true it will mean that one cycle needs to be
 // added to instruction cycles.
-// We pass CPU instance, absolute address calculated by correct addresing mode,
+// We pass CPU instance, absolute address calculated by correct addressing mode,
 // actual op code (as same instruction can have different op codes depending on
-// addressing mode) and addresing mode itself.
+// addressing mode) and addressing mode itself.
 type instructionHandler func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool
 
 // *****************************************************************************
