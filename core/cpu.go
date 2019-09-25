@@ -41,10 +41,6 @@ const (
 	iFLag flag = 2
 	// Decimal mode
 	dFLag flag = 3
-	// Break command
-	bFLag flag = 4
-	// Unused flag, in processor's manual called "expansion bit", always set to 1
-	uFLag flag = 5
 	// Overflow flag
 	vFLag flag = 6
 	// Negative flag
@@ -77,8 +73,7 @@ func (cpu *CPU) Reset() {
 	cpu.x = 0
 	cpu.y = 0
 	cpu.sp = 0xFD
-	cpu.p = 0
-	cpu.setFlag(uFLag, true)
+	cpu.p = 0b00100000
 
 	// Stack pointer is initialized to address found under 0xFFFC
 	// Where start address is stored
@@ -112,10 +107,21 @@ func (cpu *CPU) pushToStack(data uint8) {
 	cpu.sp--
 }
 
+func (cpu *CPU) pushToStack16(d uint16) {
+	// Push Program Counter to stack
+	cpu.pushToStack(uint8((d >> 8) & 0x00FF))
+	cpu.pushToStack(uint8(d & 0x00FF))
+}
+
+func (cpu *CPU) pullFromStack() uint8 {
+	cpu.sp++
+	return cpu.bus.read(0x0100 + uint16(cpu.sp))
+}
+
 // Clock - execute single clock cycle
 func (cpu *CPU) Clock() {
 	if cpu.cyclesLeft == 0 {
-		// 1. Read opcode
+		// Read opcode
 		opCode := cpu.bus.read(cpu.pc)
 		instruction, ok := cpu.instLookup[opCode]
 
@@ -125,13 +131,10 @@ func (cpu *CPU) Clock() {
 			return
 		}
 
-		// 2. Set unused flag to 1
-		cpu.setFlag(uFLag, true)
-
-		// 3. Increment Program Counter
+		// Increment Program Counter
 		cpu.pc++
 
-		// 4. Execute instruction
+		// Execute instruction
 		addrMode := instruction.opCodes[opCode].addrMode
 		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
 		address, addCycleAddr := addressingModes[addrMode](cpu)
@@ -141,9 +144,6 @@ func (cpu *CPU) Clock() {
 		if addCycleAddr && addCycleHandler {
 			cpu.cyclesLeft++
 		}
-
-		// 5. Set back unused flat to 1
-		cpu.setFlag(uFLag, true)
 	}
 
 	// One cycle done

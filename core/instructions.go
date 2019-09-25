@@ -7,7 +7,9 @@ package core
 // RTS SBC SEC SED SEI STA STX STY TAX TAY TSX TXA TXS TYA
 var instructions = []*instruction{
 	&adc, &and, &asl, &bcc, &bcs, &beq, &bit, &bmi, &bne, &bpl, &brk, &bvc, &bvs, &clc,
-	&cld, &cli, &clv, &cmp, &cpx, &cpy, &dec, &dex, &dey, &eor, &eor, &inx, &iny,
+	&cld, &cli, &clv, &cmp, &cpx, &cpy, &dec, &dex, &dey, &eor, &inc, &inx, &iny, &jmp,
+	&jsr, &lda, &ldx, &ldy, &lsr, &nop, &ora, &pha, &php, &pla, &plp,
+	&sbc,
 }
 
 // Instruction - describes instruction
@@ -54,27 +56,53 @@ var adc = instruction{
 		0x71: {indirectYAddressing, 5},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		var addCarry uint16 = 0
+		acc := cpu.a
 		data := cpu.bus.read(addr)
+		carry := uint8(0)
 
 		if cpu.getFlag(cFlag) {
-			addCarry = 1
+			carry = 1
 		}
 
-		acc16 := uint16(cpu.a)
-		data16 := uint16(data)
-		var res uint16 = acc16 + data16 + addCarry
+		cpu.a = acc + data + carry
 
-		cpu.setFlag(cFlag, res > 0xFF)
-		cpu.setFlag(zFLag, (res&0x00FF) == 0)
-		cpu.setFlag(nFLag, res&0x80 != 0)
+		cpu.setFlag(cFlag, int(acc)+int(data)+int(carry) > 0xFF)
+		cpu.setFlag(vFLag, (acc^data)&0x80 == 0 && (acc^cpu.a)&0x80 != 0)
+		cpu.setFlag(zFLag, cpu.a == 0)
+		cpu.setFlag(nFLag, cpu.a&0x80 != 0)
 
-		// http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
-		overflow := (^(acc16 ^ data16) & (acc16 ^ res)) & 0x0080
-		cpu.setFlag(vFLag, overflow != 0)
+		return true
+	},
+}
 
-		cpu.a = uint8(res & 0x00FF)
+// SBC - Subtract with carry
+var sbc = instruction{
+	name: "SBC",
+	opCodes: opCodesMap{
+		0xE9: {immediateAddressing, 2},
+		0xE5: {zeroPageAddressing, 3},
+		0xF5: {zeroPageXAddressing, 4},
+		0xED: {absoluteAddressing, 4},
+		0xFD: {absoluteXAddressing, 4},
+		0xF9: {absoluteYAddressing, 4},
+		0xE1: {indirectXAddressing, 6},
+		0xF1: {indirectYAddressing, 5},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		acc := cpu.a
+		data := cpu.bus.read(addr)
+		carry := uint8(0)
 
+		if cpu.getFlag(cFlag) {
+			carry = 1
+		}
+
+		cpu.a = acc - data - (1 - carry)
+
+		cpu.setFlag(cFlag, int(acc)-int(data)-int(1-carry) >= 0)
+		cpu.setFlag(vFLag, (acc^data)&0x80 != 0 && (acc^cpu.a)&0x80 != 0)
+		cpu.setFlag(zFLag, cpu.a == 0)
+		cpu.setFlag(nFLag, cpu.a&0x80 != 0)
 		return true
 	},
 }
@@ -91,7 +119,7 @@ var asl = instruction{
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
 		data := cpu.bus.read(addr)
-		var res16 uint16 = uint16(data) << 1
+		var res16 = uint16(data) << 1
 		cpu.setFlag(cFlag, (res16&0xFF00) > 0)
 		cpu.setFlag(zFLag, (res16&0x00FF) == 0x00)
 		cpu.setFlag(nFLag, res16&0x80 != 0)
@@ -296,19 +324,12 @@ var brk = instruction{
 		// Set interrupt flag
 		cpu.setFlag(iFLag, true)
 
-		// Push Program Counter to tack
-		cpu.pushToStack(uint8((cpu.pc >> 8) & 0x00FF))
-		cpu.pushToStack(uint8(cpu.pc & 0x00FF))
-
-		// Set Break flag
-		cpu.setFlag(bFLag, true)
+		// Push Program Counter to stack
+		cpu.pushToStack16(cpu.pc)
 
 		// Push processor status flags to stack
-		cpu.pushToStack(cpu.p)
-
-		// Clear Break flag - it is only set to be stored on stack
-		// TODO: just push to stack P register with Break flag set maybe?
-		cpu.setFlag(bFLag, false)
+		// https://wiki.nesdev.com/w/index.php/Status_flags - set 4 and 5 bit before pushing
+		cpu.pushToStack(cpu.p | 0b00110000)
 
 		// Read data from 0xFFFE and 0xFFFF and set PC
 		low := uint16(cpu.bus.read(0xFFFE))
@@ -554,6 +575,222 @@ var eor = instruction{
 		data := cpu.bus.read(addr)
 		cpu.a = cpu.a ^ data
 
+		cpu.setFlag(zFLag, cpu.a == 0x00)
+		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
+
+		return true
+	},
+}
+
+// PHA - Push accumulator to stack
+var pha = instruction{
+	name: "PHA",
+	opCodes: opCodesMap{
+		0x48: {impliedAddressing, 3},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.pushToStack(cpu.a)
+		return false
+	},
+}
+
+// PHP - Push processor status to stack
+var php = instruction{
+	name: "PHP",
+	opCodes: opCodesMap{
+		0x08: {impliedAddressing, 3},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		// Push processor status flags to stack
+		// https://wiki.nesdev.com/w/index.php/Status_flags - set 4 and 5 bit before pushing
+		cpu.pushToStack(cpu.p | 0b00110000)
+		return false
+	},
+}
+
+// PLA = Pull accumulator from stack
+var pla = instruction{
+	name: "PLA",
+	opCodes: opCodesMap{
+		0x68: {impliedAddressing, 4},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.a = cpu.pullFromStack()
+		cpu.setFlag(zFLag, cpu.a == 0x00)
+		cpu.setFlag(nFLag, cpu.a&0x80 != 0)
+
+		return false
+	},
+}
+
+// PLP = Pull processor status from stack
+var plp = instruction{
+	name: "PLP",
+	opCodes: opCodesMap{
+		0x28: {impliedAddressing, 4},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		// https://wiki.nesdev.com/w/index.php/Status_flags - ignore 4 and 5 bit - make sure 5 is set in p register
+		cpu.p = cpu.pullFromStack()&0b11001111 | 0b00100000
+
+		return false
+	},
+}
+
+// JMP = Jump to address
+var jmp = instruction{
+	// TODO: check from http://obelisk.me.uk/6502/reference.html#JMP
+	// An original 6502 has does not correctly fetch the target address if the indirect vector falls on a page
+	// boundary (e.g. $xxFF where xx is any value from $00 to $FF). In this case fetches the LSB from $xxFF as
+	// expected but takes the MSB from $xx00. This is fixed in some later chips like the 65SC02 so for compatibility
+	// always ensure the indirect vector is not at the end of the page.
+
+	name: "JMP",
+	opCodes: opCodesMap{
+		0x4C: {absoluteAddressing, 3},
+		0x6C: {indirectAddressing, 5},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.pc = addr
+		return false
+	},
+}
+
+// JSR - Jump to subroutine
+var jsr = instruction{
+	name: "JSR",
+	opCodes: opCodesMap{
+		0x20: {absoluteAddressing, 6},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.pc--
+		cpu.pushToStack16(cpu.pc)
+		cpu.pc = addr
+
+		return false
+	},
+}
+
+// LDA - Load accumulator
+var lda = instruction{
+	name: "LDA",
+	opCodes: opCodesMap{
+		0xA9: {immediateAddressing, 2},
+		0xA5: {zeroPageAddressing, 3},
+		0xB5: {zeroPageXAddressing, 4},
+		0xAD: {absoluteAddressing, 4},
+		0xBD: {absoluteXAddressing, 4},
+		0xB9: {absoluteYAddressing, 4},
+		0xA1: {indirectXAddressing, 6},
+		0xB1: {indirectYAddressing, 5},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.a = cpu.bus.read(addr)
+		cpu.setFlag(zFLag, cpu.a == 0x00)
+		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
+		return true
+	},
+}
+
+// LDX - Load X register
+var ldx = instruction{
+	name: "LDX",
+	opCodes: opCodesMap{
+		0xA2: {immediateAddressing, 2},
+		0xA6: {zeroPageAddressing, 3},
+		0xB6: {zeroPageYAddressing, 4},
+		0xAE: {absoluteAddressing, 4},
+		0xBE: {absoluteYAddressing, 4},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.x = cpu.bus.read(addr)
+		cpu.setFlag(zFLag, cpu.x == 0x00)
+		cpu.setFlag(nFLag, cpu.x&0x80 != 0x00)
+		return true
+	},
+}
+
+// LDY - Load Y register
+var ldy = instruction{
+	name: "LDY",
+	opCodes: opCodesMap{
+		0xA0: {immediateAddressing, 2},
+		0xA4: {zeroPageAddressing, 3},
+		0xB4: {zeroPageXAddressing, 4},
+		0xAC: {absoluteAddressing, 4},
+		0xBC: {absoluteXAddressing, 4},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.y = cpu.bus.read(addr)
+		cpu.setFlag(zFLag, cpu.y == 0x00)
+		cpu.setFlag(nFLag, cpu.y&0x80 != 0x00)
+		return true
+	},
+}
+
+// LSR = Logical shift right
+var lsr = instruction{
+	name: "LSR",
+	opCodes: opCodesMap{
+		0x4A: {accumulatorAddressing, 2},
+		0x46: {zeroPageAddressing, 5},
+		0x56: {zeroPageXAddressing, 6},
+		0x4E: {absoluteAddressing, 6},
+		0x5E: {absoluteXAddressing, 7},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		var data uint8
+
+		// Get correct data
+		if addrMode == accumulatorAddressing {
+			data = cpu.a
+		} else {
+			data = cpu.bus.read(addr)
+		}
+
+		cpu.setFlag(cFlag, data&0x01 != 0x00)
+		data = data >> 1
+		cpu.setFlag(zFLag, data == 0x00)
+		cpu.setFlag(nFLag, data&0x80 != 0x00)
+
+		// Save result to correct place
+		if addrMode == accumulatorAddressing {
+			cpu.a = data
+		} else {
+			cpu.bus.write(addr, data)
+		}
+
+		return false
+	},
+}
+
+// NOP - No operation
+// TODO: there is a lot of unofficial op codes that does NOP, add them
+var nop = instruction{
+	name: "NOP",
+	opCodes: opCodesMap{
+		0xEA: {impliedAddressing, 2},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		return false
+	},
+}
+
+// ORA - Logical inclusive OR
+var ora = instruction{
+	name: "ORA",
+	opCodes: opCodesMap{
+		0x09:  {immediateAddressing, 2},
+		0x05:  {zeroPageAddressing, 3},
+		0x15:  {zeroPageXAddressing, 4},
+		0x0D:  {absoluteAddressing, 4},
+		0x1D:  {absoluteXAddressing, 4},
+		0xE19: {absoluteYAddressing, 4},
+		0x01:  {indirectXAddressing, 6},
+		0x11:  {indirectYAddressing, 5},
+	},
+	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.a |= cpu.bus.read(addr)
 		cpu.setFlag(zFLag, cpu.a == 0x00)
 		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
 
