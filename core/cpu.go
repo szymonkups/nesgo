@@ -108,7 +108,6 @@ func (cpu *CPU) pushToStack(data uint8) {
 }
 
 func (cpu *CPU) pushToStack16(d uint16) {
-	// Push Program Counter to stack
 	cpu.pushToStack(uint8((d >> 8) & 0x00FF))
 	cpu.pushToStack(uint8(d & 0x00FF))
 }
@@ -116,6 +115,13 @@ func (cpu *CPU) pushToStack16(d uint16) {
 func (cpu *CPU) pullFromStack() uint8 {
 	cpu.sp++
 	return cpu.bus.read(0x0100 + uint16(cpu.sp))
+}
+
+func (cpu *CPU) pullFromStack16() uint16 {
+	low := uint16(cpu.pullFromStack())
+	high := uint16(cpu.pullFromStack())
+
+	return (high << 8) | low
 }
 
 // Clock - execute single clock cycle
