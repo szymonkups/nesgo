@@ -77,10 +77,7 @@ func (cpu *CPU) Reset() {
 
 	// Stack pointer is initialized to address found under 0xFFFC
 	// Where start address is stored
-	addr := uint16(0xFFFC)
-	low := uint16(cpu.bus.read(addr))
-	high := uint16(cpu.bus.read(addr + 1))
-	cpu.pc = (high << 8) | low
+	cpu.pc = cpu.bus.read16(0xFFFC)
 
 	// Assuming that resetting takes time
 	cpu.cyclesLeft = 8

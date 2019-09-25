@@ -332,10 +332,7 @@ var brk = instruction{
 		cpu.pushToStack(cpu.p | 0b00110000)
 
 		// Read data from 0xFFFE and 0xFFFF and set PC
-		low := uint16(cpu.bus.read(0xFFFE))
-		high := uint16(cpu.bus.read(0xFFFF))
-
-		cpu.pc = (high << 8) | low
+		cpu.pc = cpu.bus.read16(0xFFFE)
 
 		return false
 	},
