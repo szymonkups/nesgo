@@ -28,6 +28,12 @@ type CPU struct {
 
 	// Data bus to which CPU is connected
 	bus *Bus
+
+	// If true IRQ will be scheduled
+	isIRQScheduled bool
+
+	// If true NMI will be scheduled
+	isNMIScheduled bool
 }
 
 type flag uint8
@@ -83,6 +89,62 @@ func (cpu *CPU) Reset() {
 	cpu.cyclesLeft = 8
 }
 
+// Clock - execute single clock cycle
+func (cpu *CPU) Clock() {
+	if cpu.cyclesLeft == 0 {
+
+		// Check for scheduled interrutpts
+		if cpu.isNMIScheduled {
+			cpu.handleInterrupt(0xFFFA)
+			cpu.isNMIScheduled = false
+			return
+		}
+
+		if cpu.isIRQScheduled {
+			cpu.handleInterrupt(0xFFFE)
+			cpu.isIRQScheduled = false
+			return
+		}
+
+		// Read opcode
+		opCode := cpu.bus.read(cpu.pc)
+		instruction, ok := cpu.instLookup[opCode]
+
+		// Unknown opcode - quit
+		if !ok {
+			// TODO: Think what to do here
+			return
+		}
+
+		// Increment Program Counter
+		cpu.pc++
+
+		// Execute instruction
+		addrMode := instruction.opCodes[opCode].addrMode
+		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
+		address, addCycleAddr := addressingModes[addrMode](cpu)
+		addCycleHandler := instruction.handler(cpu, address, opCode, addrMode)
+
+		// We might need to add additional cycle
+		if addCycleAddr && addCycleHandler {
+			cpu.cyclesLeft++
+		}
+	}
+
+	// One cycle done
+	cpu.cyclesLeft--
+}
+
+func (cpu *CPU) scheduleIRQ() {
+	if !cpu.getFlag(iFLag) {
+		cpu.isIRQScheduled = true
+	}
+}
+
+func (cpu *CPU) scheduleNMI() {
+	cpu.isNMIScheduled = true
+}
+
 func (cpu *CPU) setFlag(f flag, v bool) {
 	var flag uint8 = 1 << f
 
@@ -121,34 +183,22 @@ func (cpu *CPU) pullFromStack16() uint16 {
 	return (high << 8) | low
 }
 
-// Clock - execute single clock cycle
-func (cpu *CPU) Clock() {
-	if cpu.cyclesLeft == 0 {
-		// Read opcode
-		opCode := cpu.bus.read(cpu.pc)
-		instruction, ok := cpu.instLookup[opCode]
+func (cpu *CPU) handleInterrupt(addr uint16) {
+	// Push program counter to stack
+	cpu.pushToStack16(cpu.pc)
 
-		// Unknown opcode - quit
-		if !ok {
-			// TODO: Think what to do here
-			return
-		}
+	// Push status to stack
+	// https://wiki.nesdev.com/w/index.php/Status_flags
+	// Set 5 bit and unset 4 bit
+	cpu.pushToStack(cpu.p&0b11001111 | 0b00100000)
 
-		// Increment Program Counter
-		cpu.pc++
+	// Disable interrupts
+	cpu.setFlag(iFLag, true)
 
-		// Execute instruction
-		addrMode := instruction.opCodes[opCode].addrMode
-		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
-		address, addCycleAddr := addressingModes[addrMode](cpu)
-		addCycleHandler := instruction.handler(cpu, address, opCode, addrMode)
+	// Read new PC
+	cpu.pc = cpu.bus.read16(addr)
 
-		// We might need to add additional cycle
-		if addCycleAddr && addCycleHandler {
-			cpu.cyclesLeft++
-		}
-	}
-
-	// One cycle done
-	cpu.cyclesLeft--
+	// It takes 7 cycles
+	// https://wiki.nesdev.com/w/index.php/CPU_interrupts
+	cpu.cyclesLeft = 8
 }
