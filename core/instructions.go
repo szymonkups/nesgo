@@ -728,7 +728,7 @@ var ldy = instruction{
 	},
 }
 
-// LSR = Logical shift right
+// LSR - Logical shift right
 var lsr = instruction{
 	name: "LSR",
 	opCodes: opCodesMap{
