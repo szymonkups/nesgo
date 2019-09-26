@@ -6,7 +6,12 @@ import (
 
 func main() {
 	bus := new(core.Bus)
-	cpu := core.NewCPU(bus)
+	bus.ConnectDevice(new(core.Ram))
+	bus.ConnectDevice(new(core.PPU))
 
-	cpu.Clock()
+
+
+	//cpu := core.NewCPU(cpuBus)
+	//
+	//cpu.Clock()
 }

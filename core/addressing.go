@@ -51,7 +51,7 @@ var addressingModes = map[int]addressingMode{
 	// offset. Zero page addressing means that only one byte can be used to
 	// get value from first memory page.
 	zeroPageAddressing: func(cpu *CPU) (uint16, bool) {
-		var offset uint8 = cpu.bus.read(cpu.pc)
+		var offset uint8 = cpu.bus.Read(cpu.pc)
 		cpu.pc++
 
 		return uint16(offset), false
@@ -61,7 +61,7 @@ var addressingModes = map[int]addressingMode{
 	// and current X register. If it exceeds byte - it wraps around so no page
 	// crossing is allowed
 	zeroPageXAddressing: func(cpu *CPU) (uint16, bool) {
-		var offset uint8 = cpu.bus.read(cpu.pc) + cpu.x
+		var offset uint8 = cpu.bus.Read(cpu.pc) + cpu.x
 		cpu.pc++
 
 		return uint16(offset), false
@@ -71,7 +71,7 @@ var addressingModes = map[int]addressingMode{
 	// and current Y register. If it exceeds byte - it wraps around so no page
 	// crossing is allowed
 	zeroPageYAddressing: func(cpu *CPU) (uint16, bool) {
-		var offset uint8 = cpu.bus.read(cpu.pc) + cpu.y
+		var offset uint8 = cpu.bus.Read(cpu.pc) + cpu.y
 		cpu.pc++
 
 		return uint16(offset), false
@@ -81,7 +81,7 @@ var addressingModes = map[int]addressingMode{
 	// number that is added to the program counter.
 	// We need to read next byte and
 	relativeAddressing: func(cpu *CPU) (uint16, bool) {
-		uOffset := cpu.bus.read(cpu.pc)
+		uOffset := cpu.bus.Read(cpu.pc)
 		cpu.pc++
 
 		// Calculate absolute position based on PC
@@ -96,9 +96,9 @@ var addressingModes = map[int]addressingMode{
 	// Absolute addressing - next two bytes represents lower and higher bytes
 	// of the absolute address.
 	absoluteAddressing: func(cpu *CPU) (uint16, bool) {
-		low := cpu.bus.read(cpu.pc)
+		low := cpu.bus.Read(cpu.pc)
 		cpu.pc++
-		high := cpu.bus.read(cpu.pc)
+		high := cpu.bus.Read(cpu.pc)
 		cpu.pc++
 
 		var addr uint16 = (uint16(high) << 8) | uint16(low)
@@ -108,9 +108,9 @@ var addressingModes = map[int]addressingMode{
 
 	// Same as absolute addresing but with adding X register to the result
 	absoluteXAddressing: func(cpu *CPU) (uint16, bool) {
-		low := cpu.bus.read(cpu.pc)
+		low := cpu.bus.Read(cpu.pc)
 		cpu.pc++
-		high := cpu.bus.read(cpu.pc)
+		high := cpu.bus.Read(cpu.pc)
 		cpu.pc++
 
 		high16 := (uint16(high) << 8)
@@ -124,9 +124,9 @@ var addressingModes = map[int]addressingMode{
 
 	// Same as absolute addresing but with adding X register to the result
 	absoluteYAddressing: func(cpu *CPU) (uint16, bool) {
-		low := cpu.bus.read(cpu.pc)
+		low := cpu.bus.Read(cpu.pc)
 		cpu.pc++
-		high := cpu.bus.read(cpu.pc)
+		high := cpu.bus.Read(cpu.pc)
 		cpu.pc++
 
 		high16 := (uint16(high) << 8)
@@ -143,9 +143,9 @@ var addressingModes = map[int]addressingMode{
 	// First we read two bytes using program counter to calculate pointer address
 	// and then from that place we read two bytes to get the actual data address.
 	indirectAddressing: func(cpu *CPU) (uint16, bool) {
-		low := cpu.bus.read(cpu.pc)
+		low := cpu.bus.Read(cpu.pc)
 		cpu.pc++
-		high := cpu.bus.read(cpu.pc)
+		high := cpu.bus.Read(cpu.pc)
 		cpu.pc++
 
 		var pointerAddr uint16 = (uint16(high) << 8) | uint16(low)
@@ -153,14 +153,14 @@ var addressingModes = map[int]addressingMode{
 		// There is a hardware bug when reading from xxFF address. By adding 1 to
 		// it (to read more significant byte of data address) we should cross
 		// pages but instead it is fetched from xx00 :)
-		dataLow := cpu.bus.read(pointerAddr)
+		dataLow := cpu.bus.Read(pointerAddr)
 		var dataHigh uint8
 
 		if low == 0xFF {
 			// Simulate bug
-			dataHigh = cpu.bus.read(pointerAddr & 0xFF00)
+			dataHigh = cpu.bus.Read(pointerAddr & 0xFF00)
 		} else {
-			dataHigh = cpu.bus.read(pointerAddr + 1)
+			dataHigh = cpu.bus.Read(pointerAddr + 1)
 		}
 
 		var addr uint16 = (uint16(dataHigh) << 8) | uint16(dataLow)
@@ -173,7 +173,7 @@ var addressingModes = map[int]addressingMode{
 	// byte of the actual data address.
 	// High byte is next to it.
 	indirectXAddressing: func(cpu *CPU) (uint16, bool) {
-		arg := cpu.bus.read(cpu.pc)
+		arg := cpu.bus.Read(cpu.pc)
 		cpu.pc++
 
 		low := arg + cpu.x
@@ -190,11 +190,11 @@ var addressingModes = map[int]addressingMode{
 	// and this is where data is stored. We need to check if page is crossed after
 	// adding Y register.
 	indirectYAddressing: func(cpu *CPU) (uint16, bool) {
-		zeroLow := cpu.bus.read(cpu.pc)
+		zeroLow := cpu.bus.Read(cpu.pc)
 		cpu.pc++
 
-		low := cpu.bus.read(uint16(zeroLow))
-		high := cpu.bus.read(uint16(zeroLow + 1))
+		low := cpu.bus.Read(uint16(zeroLow))
+		high := cpu.bus.Read(uint16(zeroLow + 1))
 		high16 := (uint16(high) << 8)
 
 		var addr uint16 = (high16 | uint16(low)) + uint16(cpu.y)

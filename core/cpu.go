@@ -83,7 +83,7 @@ func (cpu *CPU) Reset() {
 
 	// Stack pointer is initialized to address found under 0xFFFC
 	// Where start address is stored
-	cpu.pc = cpu.bus.read16(0xFFFC)
+	cpu.pc = cpu.bus.Read16(0xFFFC)
 
 	// Assuming that resetting takes time
 	cpu.cyclesLeft = 8
@@ -107,7 +107,7 @@ func (cpu *CPU) Clock() {
 		}
 
 		// Read opcode
-		opCode := cpu.bus.read(cpu.pc)
+		opCode := cpu.bus.Read(cpu.pc)
 		instruction, ok := cpu.instLookup[opCode]
 
 		// Unknown opcode - quit
@@ -162,7 +162,7 @@ func (cpu *CPU) getFlag(f flag) bool {
 }
 
 func (cpu *CPU) pushToStack(data uint8) {
-	cpu.bus.write(0x0100+uint16(cpu.sp), data)
+	cpu.bus.Write(0x0100+uint16(cpu.sp), data)
 	cpu.sp--
 }
 
@@ -173,7 +173,7 @@ func (cpu *CPU) pushToStack16(d uint16) {
 
 func (cpu *CPU) pullFromStack() uint8 {
 	cpu.sp++
-	return cpu.bus.read(0x0100 + uint16(cpu.sp))
+	return cpu.bus.Read(0x0100 + uint16(cpu.sp))
 }
 
 func (cpu *CPU) pullFromStack16() uint16 {
@@ -196,7 +196,7 @@ func (cpu *CPU) handleInterrupt(addr uint16) {
 	cpu.setFlag(iFLag, true)
 
 	// Read new PC
-	cpu.pc = cpu.bus.read16(addr)
+	cpu.pc = cpu.bus.Read16(addr)
 
 	// It takes 7 cycles
 	// https://wiki.nesdev.com/w/index.php/CPU_interrupts

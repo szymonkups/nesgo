@@ -57,7 +57,7 @@ var adc = instruction{
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
 		acc := cpu.a
-		data := cpu.bus.read(addr)
+		data := cpu.bus.Read(addr)
 		carry := uint8(0)
 
 		if cpu.getFlag(cFlag) {
@@ -90,7 +90,7 @@ var sbc = instruction{
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
 		acc := cpu.a
-		data := cpu.bus.read(addr)
+		data := cpu.bus.Read(addr)
 		carry := uint8(0)
 
 		if cpu.getFlag(cFlag) {
@@ -118,7 +118,7 @@ var asl = instruction{
 		0x1E: {absoluteXAddressing, 7},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		data := cpu.bus.read(addr)
+		data := cpu.bus.Read(addr)
 		var res16 = uint16(data) << 1
 		cpu.setFlag(cFlag, (res16&0xFF00) > 0)
 		cpu.setFlag(zFLag, (res16&0x00FF) == 0x00)
@@ -129,7 +129,7 @@ var asl = instruction{
 		if addrMode == accumulatorAddressing {
 			cpu.a = res
 		} else {
-			cpu.bus.write(addr, res)
+			cpu.bus.Write(addr, res)
 		}
 
 		return false
@@ -150,7 +150,7 @@ var and = instruction{
 		0x31: {indirectYAddressing, 5},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		data := cpu.bus.read(addr)
+		data := cpu.bus.Read(addr)
 		cpu.a = cpu.a & data
 
 		cpu.setFlag(zFLag, cpu.a == 0x00)
@@ -299,7 +299,7 @@ var bit = instruction{
 		0x2C: {absoluteAddressing, 4},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		data := cpu.bus.read(addr)
+		data := cpu.bus.Read(addr)
 		tmp := data & cpu.a
 
 		cpu.setFlag(zFLag, tmp == 0x00)
@@ -332,7 +332,7 @@ var brk = instruction{
 		cpu.pushToStack(cpu.p | 0b00110000)
 
 		// Read data from 0xFFFE and 0xFFFF and set PC
-		cpu.pc = cpu.bus.read16(0xFFFE)
+		cpu.pc = cpu.bus.Read16(0xFFFE)
 
 		return false
 	},
@@ -380,9 +380,9 @@ var inc = instruction{
 		0xFE: {absoluteXAddressing, 7},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		data := cpu.bus.read(addr)
+		data := cpu.bus.Read(addr)
 		data++
-		cpu.bus.write(addr, data)
+		cpu.bus.Write(addr, data)
 
 		cpu.setFlag(zFLag, data == 0x00)
 		cpu.setFlag(nFLag, data&0b10000000 != 0)
@@ -494,7 +494,7 @@ var cpy = instruction{
 }
 
 func compareHandler(cpu *CPU, a byte, addr uint16) {
-	data := cpu.bus.read(addr)
+	data := cpu.bus.Read(addr)
 	diff := a - data
 
 	cpu.setFlag(cFlag, a >= data)
@@ -512,9 +512,9 @@ var dec = instruction{
 		0xDE: {absoluteXAddressing, 7},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		data := cpu.bus.read(addr)
+		data := cpu.bus.Read(addr)
 		data--
-		cpu.bus.write(addr, data)
+		cpu.bus.Write(addr, data)
 
 		cpu.setFlag(zFLag, data == 0)
 		cpu.setFlag(nFLag, data&0x80 != 0)
@@ -569,7 +569,7 @@ var eor = instruction{
 		0x51: {indirectYAddressing, 5},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		data := cpu.bus.read(addr)
+		data := cpu.bus.Read(addr)
 		cpu.a = cpu.a ^ data
 
 		cpu.setFlag(zFLag, cpu.a == 0x00)
@@ -682,7 +682,7 @@ var lda = instruction{
 		0xB1: {indirectYAddressing, 5},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.a = cpu.bus.read(addr)
+		cpu.a = cpu.bus.Read(addr)
 		cpu.setFlag(zFLag, cpu.a == 0x00)
 		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
 		return true
@@ -700,7 +700,7 @@ var ldx = instruction{
 		0xBE: {absoluteYAddressing, 4},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.x = cpu.bus.read(addr)
+		cpu.x = cpu.bus.Read(addr)
 		cpu.setFlag(zFLag, cpu.x == 0x00)
 		cpu.setFlag(nFLag, cpu.x&0x80 != 0x00)
 		return true
@@ -718,7 +718,7 @@ var ldy = instruction{
 		0xBC: {absoluteXAddressing, 4},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.y = cpu.bus.read(addr)
+		cpu.y = cpu.bus.Read(addr)
 		cpu.setFlag(zFLag, cpu.y == 0x00)
 		cpu.setFlag(nFLag, cpu.y&0x80 != 0x00)
 		return true
@@ -742,7 +742,7 @@ var lsr = instruction{
 		if addrMode == accumulatorAddressing {
 			data = cpu.a
 		} else {
-			data = cpu.bus.read(addr)
+			data = cpu.bus.Read(addr)
 		}
 
 		cpu.setFlag(cFlag, data&0x01 != 0x00)
@@ -754,7 +754,7 @@ var lsr = instruction{
 		if addrMode == accumulatorAddressing {
 			cpu.a = data
 		} else {
-			cpu.bus.write(addr, data)
+			cpu.bus.Write(addr, data)
 		}
 
 		return false
@@ -787,7 +787,7 @@ var ora = instruction{
 		0x11: {indirectYAddressing, 5},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.a |= cpu.bus.read(addr)
+		cpu.a |= cpu.bus.Read(addr)
 		cpu.setFlag(zFLag, cpu.a == 0x00)
 		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
 
@@ -811,7 +811,7 @@ var rol = instruction{
 		if addrMode == accumulatorAddressing {
 			data = cpu.a
 		} else {
-			data = cpu.bus.read(addr)
+			data = cpu.bus.Read(addr)
 		}
 
 		tmpC := cpu.getFlag(cFlag)
@@ -828,7 +828,7 @@ var rol = instruction{
 		if addrMode == accumulatorAddressing {
 			cpu.a = data
 		} else {
-			cpu.bus.write(addr, data)
+			cpu.bus.Write(addr, data)
 		}
 
 		return false
@@ -851,7 +851,7 @@ var ror = instruction{
 		if addrMode == accumulatorAddressing {
 			data = cpu.a
 		} else {
-			data = cpu.bus.read(addr)
+			data = cpu.bus.Read(addr)
 		}
 
 		tmpC := cpu.getFlag(cFlag)
@@ -868,7 +868,7 @@ var ror = instruction{
 		if addrMode == accumulatorAddressing {
 			cpu.a = data
 		} else {
-			cpu.bus.write(addr, data)
+			cpu.bus.Write(addr, data)
 		}
 
 		return false
@@ -955,7 +955,7 @@ var sta = instruction{
 		0x91: {indirectYAddressing, 6},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.bus.write(addr, cpu.a)
+		cpu.bus.Write(addr, cpu.a)
 
 		return false
 	},
@@ -970,7 +970,7 @@ var stx = instruction{
 		0x8E: {absoluteAddressing, 4},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.bus.write(addr, cpu.x)
+		cpu.bus.Write(addr, cpu.x)
 
 		return false
 	},
@@ -985,7 +985,7 @@ var sty = instruction{
 		0x8C: {absoluteAddressing, 4},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.bus.write(addr, cpu.y)
+		cpu.bus.Write(addr, cpu.y)
 
 		return false
 	},
