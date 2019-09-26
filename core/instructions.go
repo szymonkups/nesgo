@@ -147,7 +147,7 @@ var and = instruction{
 		0x3D: {absoluteXAddressing, 4},
 		0x39: {absoluteYAddressing, 4},
 		0x21: {indirectXAddressing, 6},
-		0x31: {indirectYAddressing, 4},
+		0x31: {indirectYAddressing, 5},
 	},
 	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
 		data := cpu.bus.read(addr)
