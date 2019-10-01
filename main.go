@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/szymonkups/nesgo/core"
+	"github.com/szymonkups/nesgo/ui"
 	"github.com/veandco/go-sdl2/sdl"
-	"github.com/veandco/go-sdl2/ttf"
-	"os"
 )
 
 func main() {
@@ -29,52 +28,40 @@ func main() {
 	//cpu := core.NewCPU(cpuBus)
 	//
 	//cpu.Clock()
+	gui := new(ui.UI);
+	err = gui.CreateWindow()
+	defer gui.DestroyWindow()
 
-	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
-		panic(err)
-	}
-	defer sdl.Quit()
-
-	if err := ttf.Init(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize TTF: %s\n", err)
-		return
-	}
-
-	window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-		800, 600, sdl.WINDOW_SHOWN)
-	if err != nil {
-		panic(err)
-	}
-	defer window.Destroy()
-
-	var font *ttf.Font
-	var surface *sdl.Surface
-	var solid *sdl.Surface
-
-	if font, err = ttf.OpenFont("./assets/snoot-org-pixel10/px10.ttf", 14); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to open font: %s\n", err)
-		return
-	}
-	defer font.Close()
-
-	if solid, err = font.RenderUTF8Solid("CPU REGISTERS: ", sdl.Color{R: 0, G: 0xFF, B: 0, A: 0}); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to render text: %s\n", err)
-		return
-	}
-	defer solid.Free()
-
-	if surface, err = window.GetSurface(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to get window surface: %s\n", err)
-		return
-	}
-
-	if err = solid.Blit(nil, surface, nil); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to put text on window surface: %s\n", err)
-		return
-	}
-
-	// Show the pixels for a while
-	window.UpdateSurface()
+	//var font *ttf.Font
+	//var surface *sdl.Surface
+	//var solid *sdl.Surface
+	//
+	//if font, err = ttf.OpenFont("./assets/snoot-org-pixel10/px10.ttf", 14); err != nil {
+	//	fmt.Fprintf(os.Stderr, "Failed to open font: %s\n", err)
+	//	return
+	//}
+	//defer font.Close()
+	//
+	//if solid, err = font.RenderUTF8Solid("CPU REGISTERS: ", sdl.Color{R: 0, G: 0xFF, B: 0, A: 0}); err != nil {
+	//	fmt.Fprintf(os.Stderr, "Failed to render text: %s\n", err)
+	//	return
+	//}
+	//defer solid.Free()
+	//
+	//if surface, err = window.GetSurface(); err != nil {
+	//	fmt.Fprintf(os.Stderr, "Failed to get window surface: %s\n", err)
+	//	return
+	//}
+	//
+	//if err = solid.Blit(nil, surface, nil); err != nil {
+	//	fmt.Fprintf(os.Stderr, "Failed to put text on window surface: %s\n", err)
+	//	return
+	//}
+	//
+	//// Show the pixels for a while
+	//window.UpdateSurface()
+	//
+	//fmt.Println(sdl.GetDisplayDPI(0))
 
 	running := true
 	for running {
@@ -93,5 +80,7 @@ func main() {
 				break
 			}
 		}
+
+		gui.Draw()
 	}
 }
