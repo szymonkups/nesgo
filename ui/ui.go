@@ -1,15 +1,18 @@
 package ui
 
 import (
-	"fmt"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
-	"os"
+	"math"
 )
 
 type UI struct {
 	window *sdl.Window
 	renderer *sdl.Renderer
+	font *ttf.Font
+
+	render bool
+
 }
 
 func (ui *UI) CreateWindow() error {
@@ -21,8 +24,21 @@ func (ui *UI) CreateWindow() error {
 		return err
 	}
 
+
+	mode, err := sdl.GetDesktopDisplayMode(0)
+
+	if err != nil {
+		return err
+	}
+
+	// Calculate starting window size - slightly smaller than screen size
+	w := math.Floor(float64(mode.W-150) / 256)
+	h := math.Floor(float64(mode.H-150) / 240)
+	scale := int32(math.Min(w, h))
+
+	// Create window
 	window, err := sdl.CreateWindow("NESgo", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-		800, 600, sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE)
+		256 * scale, 240 * scale, sdl.WINDOW_SHOWN )
 
 	if err != nil {
 		return err
@@ -30,7 +46,18 @@ func (ui *UI) CreateWindow() error {
 
 	ui.window = window
 
+	// Create font
+	if ui.font, err = ttf.OpenFont("./assets/silkscreen/slkscr.ttf", 8); err != nil {
+		return err
+	}
+
 	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
+
+	if err != nil {
+		return err
+	}
+
+	err = renderer.SetLogicalSize(256, 240)
 
 	if err != nil {
 		return err
@@ -41,10 +68,14 @@ func (ui *UI) CreateWindow() error {
 	return nil
 }
 
-func (ui *UI) Draw() {
+func (ui *UI) Draw() error {
 	renderer := ui.renderer
 
-	viewportRect := renderer.GetViewport()
+	if ui.render {
+		return nil
+	}
+
+	//viewportRect := renderer.GetViewport()
 	//w, h := ui.window.GetSize()
 	//viewportRect.X = (w - 800) / 2
 	//viewportRect.Y = (h - 600) / 2
@@ -52,47 +83,40 @@ func (ui *UI) Draw() {
 
 	//if w > h {
 	//	scale := float32(viewportRect.H / h)
-		fmt.Println(viewportRect)
 	//}
 
 	//renderer.SetScale(2,2)
 
-	renderer.SetLogicalSize(800, 600)
-	var font *ttf.Font
 	var solid *sdl.Surface
 	var err error
-
-	if font, err = ttf.OpenFont("./assets/snoot-org-pixel10/px10.ttf", 14); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to open font: %s\n", err)
-		return
-	}
-	defer font.Close()
-
-	if solid, err = font.RenderUTF8Solid("CPU REGISTERS: ", sdl.Color{R: 0, G: 0xFF, B: 0, A: 0}); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to render text: %s\n", err)
-		return
-	}
-	defer solid.Free()
-
-	//if err = solid.Blit(nil, renderer, nil); err != nil {
-	//	fmt.Fprintf(os.Stderr, "Failed to put text on window surface: %s\n", err)
-	//	return
-	//}
 
 	ui.renderer.SetDrawColor(0, 0, 0, 0)
 	ui.renderer.Clear()
 
-	texture, _ := renderer.CreateTextureFromSurface(solid)
-	renderer.Copy(texture, &solid.ClipRect, &solid.ClipRect)
-
-	rect := sdl.Rect{0, 0, 800, 600}
+	rect := sdl.Rect{0, 0, 256, 240}
 	ui.renderer.SetDrawColor(255, 0, 0, 0)
 	ui.renderer.DrawRect(&rect)
 
+	title := sdl.Rect{0,0,256, 10}
+	ui.renderer.FillRect(&title)
+
+	if solid, err = ui.font.RenderUTF8Solid("CPU DEBUGGER", sdl.Color{R: 0, G: 0, B: 0, A: 0}); err != nil {
+		return err
+	}
+
+	texture, _ := renderer.CreateTextureFromSurface(solid)
+	renderer.Copy(texture, &solid.ClipRect, &solid.ClipRect)
+
+	defer solid.Free()
+
 	ui.renderer.Present()
+
+	ui.render = true
+	return nil
 }
 
 func (ui *UI) DestroyWindow() {
+	ui.font.Close()
 	sdl.Quit()
 	ttf.Quit()
 }

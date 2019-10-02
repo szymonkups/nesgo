@@ -1,36 +1,38 @@
 package main
 
 import (
-	"fmt"
-	"github.com/szymonkups/nesgo/core"
 	"github.com/szymonkups/nesgo/ui"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 func main() {
 	// Create main system components
-	bus := new(core.Bus)
-	ram := new(core.Ram)
-	ppu := new(core.PPU)
-	crt := new(core.Cartridge)
-
-	// Connect them to create NES architecture
-	bus.ConnectDevice(ram)
-	bus.ConnectDevice(ppu)
-	bus.ConnectDevice(crt)
-
-	err := crt.LoadFile("/home/szymon/Downloads/nes/baseball.nes")
-
-	if err != nil {
-		fmt.Printf("Could not load a file: %s.\n", err)
-	}
+	//bus := new(core.Bus)
+	//ram := new(core.Ram)
+	//ppu := new(core.PPU)
+	//crt := new(core.Cartridge)
+	//
+	//// Connect them to create NES architecture
+	//bus.ConnectDevice(ram)
+	//bus.ConnectDevice(ppu)
+	//bus.ConnectDevice(crt)
+	//
+	//err := crt.LoadFile("/home/szymon/Downloads/nes/baseball.nes")
+	//
+	//if err != nil {
+	//	fmt.Printf("Could not load a file: %s.\n", err)
+	//}
 
 	//cpu := core.NewCPU(cpuBus)
 	//
 	//cpu.Clock()
 	gui := new(ui.UI);
-	err = gui.CreateWindow()
+	err := gui.CreateWindow()
 	defer gui.DestroyWindow()
+
+	if err != nil {
+		panic(err)
+	}
 
 	//var font *ttf.Font
 	//var surface *sdl.Surface
