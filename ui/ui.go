@@ -10,9 +10,6 @@ type UI struct {
 	window *sdl.Window
 	renderer *sdl.Renderer
 	font *ttf.Font
-
-	render bool
-
 }
 
 func (ui *UI) CreateWindow() error {
@@ -71,9 +68,7 @@ func (ui *UI) CreateWindow() error {
 func (ui *UI) Draw() error {
 	renderer := ui.renderer
 
-	if ui.render {
-		return nil
-	}
+	renderer.Clear()
 
 	//viewportRect := renderer.GetViewport()
 	//w, h := ui.window.GetSize()
@@ -109,9 +104,7 @@ func (ui *UI) Draw() error {
 
 	defer solid.Free()
 
-	ui.renderer.Present()
-
-	ui.render = true
+	renderer.Present()
 	return nil
 }
 
