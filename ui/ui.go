@@ -1,15 +1,18 @@
 package ui
 
 import (
+	"fmt"
+	"github.com/szymonkups/nesgo/ui/colors"
+	"github.com/szymonkups/nesgo/ui/utils"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 	"math"
 )
 
 type UI struct {
-	window *sdl.Window
+	window   *sdl.Window
 	renderer *sdl.Renderer
-	font *ttf.Font
+	font     *ttf.Font
 }
 
 func (ui *UI) CreateWindow() error {
@@ -20,7 +23,6 @@ func (ui *UI) CreateWindow() error {
 	if err := ttf.Init(); err != nil {
 		return err
 	}
-
 
 	mode, err := sdl.GetDesktopDisplayMode(0)
 
@@ -35,7 +37,7 @@ func (ui *UI) CreateWindow() error {
 
 	// Create window
 	window, err := sdl.CreateWindow("NESgo", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-		256 * scale, 240 * scale, sdl.WINDOW_SHOWN )
+		256*scale, 240*scale, sdl.WINDOW_SHOWN)
 
 	if err != nil {
 		return err
@@ -70,39 +72,29 @@ func (ui *UI) Draw() error {
 
 	renderer.Clear()
 
-	//viewportRect := renderer.GetViewport()
-	//w, h := ui.window.GetSize()
-	//viewportRect.X = (w - 800) / 2
-	//viewportRect.Y = (h - 600) / 2
-	//renderer.SetViewport(&viewportRect)
-
-	//if w > h {
-	//	scale := float32(viewportRect.H / h)
-	//}
-
-	//renderer.SetScale(2,2)
-
-	var solid *sdl.Surface
-	var err error
+	fps, enoughData := utils.CalculateFPS()
 
 	ui.renderer.SetDrawColor(0, 0, 0, 0)
 	ui.renderer.Clear()
 
 	rect := sdl.Rect{0, 0, 256, 240}
-	ui.renderer.SetDrawColor(255, 0, 0, 0)
+	ui.renderer.SetDrawColor(colors.HeaderBg.R, colors.HeaderBg.G, colors.HeaderBg.B, colors.HeaderBg.A)
 	ui.renderer.DrawRect(&rect)
 
-	title := sdl.Rect{0,0,256, 10}
+	title := sdl.Rect{0, 0, 256, 9}
 	ui.renderer.FillRect(&title)
 
-	if solid, err = ui.font.RenderUTF8Solid("CPU DEBUGGER", sdl.Color{R: 0, G: 0, B: 0, A: 0}); err != nil {
-		return err
+	ui.drawText("NES CPU debugger", 1, 0, colors.HeaderText)
+
+	fpsText := ""
+
+	if enoughData {
+		fpsText = fmt.Sprintf("FPS: %d", fps)
+	} else {
+		fpsText = "FPS: --"
 	}
 
-	texture, _ := renderer.CreateTextureFromSurface(solid)
-	renderer.Copy(texture, &solid.ClipRect, &solid.ClipRect)
-
-	defer solid.Free()
+	ui.drawText(fpsText, 220, 0, colors.HeaderText)
 
 	renderer.Present()
 	return nil
@@ -113,4 +105,3 @@ func (ui *UI) DestroyWindow() {
 	sdl.Quit()
 	ttf.Quit()
 }
-

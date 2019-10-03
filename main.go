@@ -26,7 +26,7 @@ func main() {
 	//cpu := core.NewCPU(cpuBus)
 	//
 	//cpu.Clock()
-	gui := new(ui.UI);
+	gui := new(ui.UI)
 	err := gui.CreateWindow()
 	defer gui.DestroyWindow()
 
@@ -84,5 +84,6 @@ func main() {
 		}
 
 		gui.Draw()
+		sdl.Delay(1000 / 60)
 	}
 }
