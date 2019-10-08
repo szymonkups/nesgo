@@ -13,6 +13,7 @@ type UI struct {
 	window   *sdl.Window
 	renderer *sdl.Renderer
 	font     *ttf.Font
+	children []*utils.DisplayObject
 }
 
 func (ui *UI) CreateWindow() error {
@@ -69,22 +70,7 @@ func (ui *UI) CreateWindow() error {
 
 func (ui *UI) Draw() error {
 	renderer := ui.renderer
-
 	renderer.Clear()
-
-	fps, enoughData := utils.CalculateFPS()
-
-	ui.renderer.SetDrawColor(0, 0, 0, 0)
-	ui.renderer.Clear()
-
-	rect := sdl.Rect{0, 0, 256, 240}
-	ui.renderer.SetDrawColor(colors.HeaderBg.R, colors.HeaderBg.G, colors.HeaderBg.B, colors.HeaderBg.A)
-	ui.renderer.DrawRect(&rect)
-
-	title := sdl.Rect{0, 0, 256, 9}
-	ui.renderer.FillRect(&title)
-
-	ui.drawText("NES CPU debugger", 1, 0, colors.HeaderText)
 
 	fpsText := ""
 
@@ -104,4 +90,19 @@ func (ui *UI) DestroyWindow() {
 	ui.font.Close()
 	sdl.Quit()
 	ttf.Quit()
+}
+
+func (ui *UI) renderDisplayTree(root []*utils.DisplayObject) {
+	ctx := utils.DrawingContext{Renderer: ui.renderer}
+
+	// Draw display object on this level
+	for _, item := range root {
+		item.Draw(&ctx)
+	}
+
+	// Draw all children
+	for _, item := range root {
+		ui.renderDisplayTree(item.Children)
+	}
+
 }

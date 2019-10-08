@@ -1,8 +1,11 @@
-package ui
+package utils
 
-import "github.com/veandco/go-sdl2/sdl"
+import (
+	"github.com/szymonkups/nesgo/ui"
+	"github.com/veandco/go-sdl2/sdl"
+)
 
-func (ui *UI) drawText(text string, x int32, y int32, color sdl.Color) (err error) {
+func DrawText(text string, x int32, y int32, color sdl.Color) (err error) {
 	surface, err := ui.font.RenderUTF8Solid(text, color)
 
 	if err != nil {
