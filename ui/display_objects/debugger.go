@@ -1,23 +1,18 @@
 package display_objects
 
 import (
-	"github.com/szymonkups/nesgo/ui"
+	"fmt"
 	"github.com/szymonkups/nesgo/ui/colors"
-	"github.com/szymonkups/nesgo/ui/utils"
-	"github.com/veandco/go-sdl2/sdl"
+	"github.com/szymonkups/nesgo/ui/engine"
 )
 
-var Debugger = utils.DisplayObject{
-	Children: []*utils.DisplayObject{},
-	Draw: func(ctx *utils.DrawingContext) {
-		fps, enoughData := utils.CalculateFPS()
+var Debugger = engine.DisplayObject{
+	Children: nil,
+	Draw: func(e *engine.UIEngine) {
+		e.DrawRect(0, 0, 256, 240, 0xFF, 0, 0, 0)
+		e.FillRect(0, 0, 256, 9, 0xFF, 0, 0, 0)
 
-		rect := sdl.Rect{0, 0, 256, 240}
-		ctx.Renderer.SetDrawColor(colors.HeaderBg.R, colors.HeaderBg.G, colors.HeaderBg.B, colors.HeaderBg.A)
-		ctx.Renderer.DrawRect(&rect)
-
-		title := sdl.Rect{0, 0, 256, 9}
-		ctx.Renderer.FillRect(&title)
-		ui.drawText("NES CPU debugger", 1, 0, colors.HeaderText)
+		e.DrawText("NES CPU debugger", 1, 0, colors.HeaderText)
+		e.DrawText(fmt.Sprintf("FPS: %d", e.FPS), 210, 0, colors.HeaderText)
 	},
 }

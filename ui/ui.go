@@ -1,108 +1,67 @@
 package ui
 
 import (
-	"fmt"
-	"github.com/szymonkups/nesgo/ui/colors"
-	"github.com/szymonkups/nesgo/ui/utils"
-	"github.com/veandco/go-sdl2/sdl"
-	"github.com/veandco/go-sdl2/ttf"
+	"github.com/szymonkups/nesgo/ui/display_objects"
+	"github.com/szymonkups/nesgo/ui/engine"
+	"github.com/szymonkups/nesgo/ui/engine/utils"
 	"math"
 )
 
 type UI struct {
-	window   *sdl.Window
-	renderer *sdl.Renderer
-	font     *ttf.Font
-	children []*utils.DisplayObject
+	engine *engine.UIEngine
+
+	// Display objects
+	debugger *engine.DisplayObject
 }
 
-func (ui *UI) CreateWindow() error {
-	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
-		return err
-	}
+const (
+	windowWidth  = 256
+	windowHeight = 240
+)
 
-	if err := ttf.Init(); err != nil {
-		return err
-	}
-
-	mode, err := sdl.GetDesktopDisplayMode(0)
-
+func (ui *UI) Init() error {
+	ui.engine = new(engine.UIEngine)
+	err := ui.engine.Init()
 	if err != nil {
 		return err
 	}
 
 	// Calculate starting window size - slightly smaller than screen size
-	w := math.Floor(float64(mode.W-150) / 256)
-	h := math.Floor(float64(mode.H-150) / 240)
+	screenW, screenH, err := utils.GetScreenResolution()
+
+	if err != nil {
+		return err
+	}
+
+	w := math.Floor(float64(screenW-150) / windowWidth)
+	h := math.Floor(float64(screenH-150) / windowHeight)
 	scale := int32(math.Min(w, h))
 
-	// Create window
-	window, err := sdl.CreateWindow("NESgo", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-		256*scale, 240*scale, sdl.WINDOW_SHOWN)
+	err = ui.engine.CreateWindow(windowWidth*scale, windowHeight*scale, windowWidth, windowHeight)
 
 	if err != nil {
 		return err
 	}
 
-	ui.window = window
-
-	// Create font
-	if ui.font, err = ttf.OpenFont("./assets/silkscreen/slkscr.ttf", 8); err != nil {
-		return err
-	}
-
-	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
-
-	if err != nil {
-		return err
-	}
-
-	err = renderer.SetLogicalSize(256, 240)
-
-	if err != nil {
-		return err
-	}
-
-	ui.renderer = renderer
+	// Initialize all display objects
+	ui.debugger = &display_objects.Debugger
+	ui.engine.Children = append(ui.engine.Children, ui.debugger)
 
 	return nil
+}
+
+func (ui *UI) Destroy() {
+	ui.engine.Destroy()
 }
 
 func (ui *UI) Draw() error {
-	renderer := ui.renderer
-	renderer.Clear()
+	// Clear screen.
+	err := ui.engine.ClearScreen(0, 0, 0, 0)
 
-	fpsText := ""
-
-	if enoughData {
-		fpsText = fmt.Sprintf("FPS: %d", fps)
-	} else {
-		fpsText = "FPS: --"
+	if err != nil {
+		return err
 	}
 
-	ui.drawText(fpsText, 220, 0, colors.HeaderText)
-
-	renderer.Present()
+	ui.engine.Render()
 	return nil
-}
-
-func (ui *UI) DestroyWindow() {
-	ui.font.Close()
-	sdl.Quit()
-	ttf.Quit()
-}
-
-func (ui *UI) renderDisplayTree(root []*utils.DisplayObject) {
-	ctx := utils.DrawingContext{Renderer: ui.renderer}
-
-	// Draw display object on this level
-	for _, item := range root {
-		item.Draw(&ctx)
-	}
-
-	// Draw all children
-	for _, item := range root {
-		ui.renderDisplayTree(item.Children)
-	}
-
 }

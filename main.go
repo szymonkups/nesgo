@@ -27,12 +27,13 @@ func main() {
 	//
 	//cpu.Clock()
 	gui := new(ui.UI)
-	err := gui.CreateWindow()
-	defer gui.DestroyWindow()
+	err := gui.Init()
 
 	if err != nil {
 		panic(err)
 	}
+
+	defer gui.Destroy()
 
 	//var font *ttf.Font
 	//var surface *sdl.Surface
@@ -83,7 +84,12 @@ func main() {
 			}
 		}
 
-		gui.Draw()
+		err = gui.Draw()
+
+		if err != nil {
+			panic(err)
+		}
+
 		sdl.Delay(1000 / 60)
 	}
 }
