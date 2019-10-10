@@ -116,11 +116,11 @@ func getInstructionByName(name string) *instruction {
 }
 
 type instructionInfo struct {
-	addrMode int
-	assember string
-	opCode   uint8
-	length   uint8
-	noCycles uint8
+	addrMode  int
+	assembler string
+	opCode    uint8
+	length    uint8
+	noCycles  uint8
 }
 
 var nameToAddressing map[string]int = map[string]int{
@@ -169,10 +169,10 @@ func getInstructionInfo(line string) (*instructionInfo, error) {
 		}
 
 		info := instructionInfo{
-			addrMode: a,
-			assember: strings.Trim(res[2], " "),
-			opCode:   uint8(opCode),
-			noCycles: uint8(cycles),
+			addrMode:  a,
+			assembler: strings.Trim(res[2], " "),
+			opCode:    uint8(opCode),
+			noCycles:  uint8(cycles),
 		}
 
 		return &info, nil

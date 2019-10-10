@@ -11,7 +11,6 @@ type UIEngine struct {
 	window   *sdl.Window
 	renderer *sdl.Renderer
 	FPS      uint32
-	Children []*DisplayObject
 }
 
 func (ui *UIEngine) Init() error {
@@ -37,7 +36,7 @@ func (ui *UIEngine) CreateWindow(w int32, h int32, logicalW int32, logicalH int3
 	ui.window = window
 
 	// Create font
-	if ui.font, err = ttf.OpenFont("./assets/silkscreen/slkscr.ttf", 8); err != nil {
+	if ui.font, err = ttf.OpenFont("./assets/kongtext/kongtext.ttf", 8); err != nil {
 		return err
 	}
 
@@ -74,7 +73,7 @@ func (ui *UIEngine) ClearScreen(r, g, b, a uint8) error {
 	return nil
 }
 
-func (ui *UIEngine) Render() {
+func (ui *UIEngine) Render(root Displayable) {
 	fps, isData := utils.CalculateFPS()
 
 	if isData {
@@ -83,7 +82,8 @@ func (ui *UIEngine) Render() {
 		ui.FPS = 0
 	}
 
-	ui.renderChildren(ui.Children)
+	root.Draw(ui)
+	ui.renderChildren(root.GetChildren())
 	ui.renderer.Present()
 }
 
@@ -99,8 +99,13 @@ func (ui *UIEngine) FillRect(x, y, w, h int32, r, g, b, a uint8) {
 	ui.renderer.FillRect(&rect)
 }
 
-func (ui *UIEngine) DrawText(text string, x int32, y int32, color sdl.Color) (err error) {
-	surface, err := ui.font.RenderUTF8Solid(text, color)
+func (ui *UIEngine) DrawText(text string, x int32, y int32, r, g, b, a uint8) (err error) {
+	surface, err := ui.font.RenderUTF8Solid(text, sdl.Color{
+		R: r,
+		G: g,
+		B: b,
+		A: a,
+	})
 
 	if err != nil {
 		return err
@@ -138,7 +143,7 @@ func (ui *UIEngine) Destroy() {
 	ttf.Quit()
 }
 
-func (ui *UIEngine) renderChildren(children []*DisplayObject) {
+func (ui *UIEngine) renderChildren(children []Displayable) {
 	if children == nil {
 		return
 	}
@@ -148,6 +153,6 @@ func (ui *UIEngine) renderChildren(children []*DisplayObject) {
 	}
 
 	for _, item := range children {
-		ui.renderChildren(item.Children)
+		ui.renderChildren(item.GetChildren())
 	}
 }

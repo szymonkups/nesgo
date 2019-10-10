@@ -2,6 +2,7 @@ package utils
 
 import (
 	"github.com/veandco/go-sdl2/sdl"
+	"math"
 )
 
 const fpsInterval = 1000
@@ -21,5 +22,5 @@ func CalculateFPS() (uint32, bool) {
 		enoughData = true
 	}
 
-	return fps, enoughData
+	return uint32(math.Min(float64(fps), 999)), enoughData
 }

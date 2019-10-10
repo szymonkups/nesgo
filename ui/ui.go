@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/szymonkups/nesgo/core"
 	"github.com/szymonkups/nesgo/ui/display_objects"
 	"github.com/szymonkups/nesgo/ui/engine"
 	"github.com/szymonkups/nesgo/ui/engine/utils"
@@ -11,7 +12,7 @@ type UI struct {
 	engine *engine.UIEngine
 
 	// Display objects
-	debugger *engine.DisplayObject
+	debugger *display_objects.Debugger
 }
 
 const (
@@ -19,7 +20,7 @@ const (
 	windowHeight = 240
 )
 
-func (ui *UI) Init() error {
+func (ui *UI) Init(cpu *core.CPU) error {
 	ui.engine = new(engine.UIEngine)
 	err := ui.engine.Init()
 	if err != nil {
@@ -44,17 +45,17 @@ func (ui *UI) Init() error {
 	}
 
 	// Initialize all display objects
-	ui.debugger = &display_objects.Debugger
-	ui.engine.Children = append(ui.engine.Children, ui.debugger)
+	ui.debugger = &display_objects.Debugger{CPU: cpu}
 
 	return nil
 }
 
 func (ui *UI) Destroy() {
 	ui.engine.Destroy()
+
 }
 
-func (ui *UI) Draw() error {
+func (ui *UI) DrawDebugger() error {
 	// Clear screen.
 	err := ui.engine.ClearScreen(0, 0, 0, 0)
 
@@ -62,6 +63,6 @@ func (ui *UI) Draw() error {
 		return err
 	}
 
-	ui.engine.Render()
+	ui.engine.Render(ui.debugger)
 	return nil
 }

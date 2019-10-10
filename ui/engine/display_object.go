@@ -1,6 +1,6 @@
 package engine
 
-type DisplayObject struct {
-	Children []*DisplayObject
-	Draw     func(e *UIEngine)
+type Displayable interface {
+	GetChildren() []Displayable
+	Draw(e *UIEngine) error
 }

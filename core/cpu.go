@@ -202,3 +202,24 @@ func (cpu *CPU) handleInterrupt(addr uint16) {
 	// https://wiki.nesdev.com/w/index.php/CPU_interrupts
 	cpu.cyclesLeft = 8
 }
+
+type CPUDebugInfo struct {
+	PC uint16
+	SP uint8
+	A  uint8
+	X  uint8
+	Y  uint8
+	P  uint8
+}
+
+func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
+
+	return CPUDebugInfo{
+		PC: cpu.pc,
+		SP: cpu.sp,
+		A:  cpu.a,
+		X:  cpu.x,
+		Y:  cpu.y,
+		P:  cpu.p,
+	}
+}
