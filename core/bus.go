@@ -5,6 +5,9 @@ import "log"
 type readWriteDevice interface {
 	Read(addr uint16) (uint8, bool)
 	Write(addr uint16, data uint8) bool
+
+	// Just read without modifying anything.
+	ReadDebug(addr uint16) (uint8, bool)
 }
 
 type Bus struct {
@@ -28,6 +31,26 @@ func (bus *Bus) Read(addr uint16) uint8 {
 
 	log.Printf("Trying to read from address 0x%X from the bus but there is no device to handle it.\n", addr)
 	return 0x00
+}
+
+func (bus *Bus) ReadDebug(addr uint16) uint8 {
+	// Go trough all devices - correct one will pick it up.
+	for _, dev := range bus.devices {
+		val, handled := dev.ReadDebug(addr)
+
+		if handled {
+			return val
+		}
+	}
+
+	log.Printf("DEBUG: Trying to read from address 0x%X from the bus but there is no device to handle it.\n", addr)
+	return 0x00
+}
+
+func (bus *Bus) ReadDebug16(addr uint16) uint16 {
+	low := uint16(bus.ReadDebug(addr))
+	high := uint16(bus.ReadDebug(addr + 1))
+	return (high << 8) | low
 }
 
 func (bus *Bus) Read16(addr uint16) uint16 {

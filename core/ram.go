@@ -14,6 +14,10 @@ func (ram *Ram) Read(addr uint16) (uint8, bool) {
 	return 0x00, false
 }
 
+func (ram *Ram) ReadDebug(addr uint16) (uint8, bool) {
+	return ram.Read(addr)
+}
+
 func (ram *Ram) Write(addr uint16, data uint8) bool {
 	// Check if RAM range
 	if addr <= 0x1FFF {
@@ -25,7 +29,3 @@ func (ram *Ram) Write(addr uint16, data uint8) bool {
 
 	return false
 }
-
-
-
-

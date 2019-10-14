@@ -23,6 +23,10 @@ func (crt *Cartridge) Read(addr uint16) (uint8, bool) {
 	return 0x00, false
 }
 
+func (crt *Cartridge) ReadDebug(addr uint16) (uint8, bool) {
+	return crt.Read(addr)
+}
+
 func (crt *Cartridge) Write(addr uint16, data uint8) bool {
 	if crt.mapper != nil {
 		return crt.mapper.Write(addr, data)
@@ -111,6 +115,7 @@ func (crt *Cartridge) LoadFile(fileName string) error {
 		return fmt.Errorf("mapper 0x%X not supported, yet", mapperNumber)
 	}
 
+	mapper.Initialize(header.PrgRomSize, header.ChrRomSize, prgMem, chrMem)
 	crt.mapper = mapper
 
 	return nil

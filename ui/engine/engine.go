@@ -52,6 +52,8 @@ func (ui *UIEngine) CreateWindow(w int32, h int32, logicalW int32, logicalH int3
 		return err
 	}
 
+	renderer.SetDrawBlendMode(sdl.BLENDMODE_BLEND)
+
 	ui.renderer = renderer
 
 	return nil
@@ -100,7 +102,7 @@ func (ui *UIEngine) FillRect(x, y, w, h int32, r, g, b, a uint8) {
 }
 
 func (ui *UIEngine) DrawText(text string, x int32, y int32, r, g, b, a uint8) (err error) {
-	surface, err := ui.font.RenderUTF8Solid(text, sdl.Color{
+	surface, err := ui.font.RenderUTF8Blended(text, sdl.Color{
 		R: r,
 		G: g,
 		B: b,
@@ -120,6 +122,8 @@ func (ui *UIEngine) DrawText(text string, x int32, y int32, r, g, b, a uint8) (e
 	}
 
 	defer tex.Destroy()
+
+	tex.SetAlphaMod(a)
 
 	dst := sdl.Rect{
 		X: x,

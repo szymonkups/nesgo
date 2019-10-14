@@ -13,16 +13,16 @@ type Debugger struct {
 func (d *Debugger) Draw(e *engine.UIEngine) error {
 
 	// DRAW HEADER WITH FPS
-	e.DrawRect(0, 0, 256, 240, 0xFF, 0, 0, 0)
-	e.FillRect(0, 0, 256, 8, 0xFF, 0, 0, 0)
+	e.DrawRect(0, 0, 256, 240, 0xFF, 0, 0, 0xFF)
+	e.FillRect(0, 0, 256, 8, 0xFF, 0, 0, 0xFF)
 
-	err := e.DrawText("NES CPU DEBUGGER", 1, 0, 0, 0, 0, 0)
+	err := e.DrawText("NES CPU DEBUGGER", 1, 0, 0, 0, 0, 0xFF)
 
 	if err != nil {
 		return err
 	}
 
-	err = e.DrawText(fmt.Sprintf("FPS:%3d", e.FPS), 199, 0, 0, 0, 0, 0)
+	err = e.DrawText(fmt.Sprintf("FPS:%3d", e.FPS), 199, 0, 0, 0, 0, 0xFF)
 
 	if err != nil {
 		return err
@@ -31,11 +31,14 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	// Draw registers
 	reg := d.CPU.GetDebugInfo()
 	drawRegister16(e, "PC", reg.PC, 2, 9)
-	drawRegister8(e, "SP", reg.SP, 57+13, 9, false)
-	drawRegister8(e, "A", reg.A, 97+25, 9, false)
-	drawRegister8(e, "X", reg.X, 137+29, 9, false)
-	drawRegister8(e, "Y", reg.Y, 177+33, 9, true)
+	drawRegister8(e, "SP", reg.SP, 55, 9)
+	drawRegister8(e, "A", reg.A, 92, 9)
+	drawRegister8(e, "X", reg.X, 121, 9)
+	drawRegister8(e, "Y", reg.Y, 150, 9)
+	drawFlags8(e, "NV--DIZC", reg.P, 179, 9)
 
+	// Draw current memory range
+	drawAssembly(d.CPU, e, 2, 21, reg.PC)
 	return nil
 }
 
@@ -44,27 +47,59 @@ func (d *Debugger) GetChildren() []engine.Displayable {
 }
 
 func drawRegister16(e *engine.UIEngine, name string, value uint16, x, y int32) {
-	e.DrawRect(x, y, 67, 10, 0xFF, 0, 0, 0)
-	e.FillRect(x+17, y, 49, 10, 0xFF, 0, 0, 0)
-	e.DrawText(name, x+1, y+1, 0xFF, 0, 0, 0)
-	e.DrawText(fmt.Sprintf("0x%04X", value), x+18, y+1, 0xff, 0xff, 0xff, 0xff)
+	e.DrawRect(x, y, 52, 10, 0xFF, 0, 0, 0xFF)
+	e.DrawText(name, x+1, y+1, 0xFF, 0, 0, 0xAA)
+	e.DrawText(fmt.Sprintf("%04X", value), x+19, y+1, 0xff, 0xff, 0xff, 0xff)
 }
 
-func drawRegister8(e *engine.UIEngine, name string, value uint8, x, y int32, fix bool) {
+func drawRegister8(e *engine.UIEngine, name string, value uint8, x, y int32) {
 	s := int32(0)
-	z := int32(0)
 
 	if len(name) == 1 {
 		s = 8
 	}
+	e.DrawRect(x, y, 36-s, 10, 0xFF, 0, 0, 0xFF)
+	e.DrawText(name, x+1, y+1, 0xFF, 0, 0, 0xAA)
+	e.DrawText(fmt.Sprintf("%02X", value), x+19-s, y+1, 0xff, 0xff, 0xff, 0xff)
+}
 
-	// Stupid fix to make last register end wit 1px gap not 2px
-	if fix {
-		z = 1
+func drawFlags8(e *engine.UIEngine, registers string, value uint8, x, y int32) {
+	e.DrawRect(x, y, 75, 10, 0xFF, 0, 0, 0xFF)
+
+	ty := y + 1
+	for i, l := range registers {
+		tx := x + 6 + (int32(i) * 8)
+		text := string(l)
+		isByteActive := value&(1<<(7-i)) > 0
+
+		if isByteActive {
+			e.DrawText(text, tx, ty, 0xFF, 0xFF, 0xFF, 0xFF)
+		} else {
+			e.DrawText(text, tx, ty, 0xFF, 0, 0, 0x66)
+		}
+
+	}
+}
+
+func drawAssembly(cpu *core.CPU, e *engine.UIEngine, x, y int32, pc uint16) {
+	addr := int32(pc)
+	assembly, ok := cpu.Disassemble(pc)
+
+	e.FillRect(x, y, 252, 8, 0xFF, 0, 0, 0xFF)
+
+	if !ok {
+		e.DrawText(fmt.Sprintf("$%04X   #!UNKNOWN OPCODE!#", addr), x, y, 0xFF, 0xFF, 0xFF, 0xFF)
+	} else {
+		e.DrawText(fmt.Sprintf("$%04X   %s", addr, assembly), x, y, 0xFF, 0xFF, 0xFF, 0xFF)
 	}
 
-	e.DrawRect(x, y, 51-s, 10, 0xFF, 0, 0, 0)
-	e.FillRect(x+17-s, y, 34+z, 10, 0xFF, 0, 0, 0)
-	e.DrawText(name, x+1, y+1, 0xFF, 0, 0, 0)
-	e.DrawText(fmt.Sprintf("0x%02X", value), x+18-s, y+1, 0xff, 0xff, 0xff, 0xff)
+	//for i := int32(0); i < 27; i++ {
+	//	addr := int32(pc) + i - 13
+	//
+	//	if addr < 0 || addr > 0xFFFF {
+	//		continue
+	//	}
+	//
+	//	e.DrawText(fmt.Sprintf("%04X   BRK #$00 {IMM}", addr), x, y+(i*8), 0xFF, 0xFF, 0xFF, 0xFF)
+	//}
 }

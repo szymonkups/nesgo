@@ -56,7 +56,7 @@ func TestInstructions(t *testing.T) {
 		}
 
 		if info != nil && instr != nil {
-			_, c, found := findByOpCode(instr, info.opCode)
+			addr, c, found := findByOpCode(instr, info.opCode)
 
 			if !found {
 				t.Errorf("Could not find op code %x in instrction %s", info.opCode, instr.name)
@@ -66,6 +66,10 @@ func TestInstructions(t *testing.T) {
 			if info.noCycles != c {
 				t.Errorf("Mismatch in cycles for instricion %s. Test file: %d, implementation: %d", instr.name, info.noCycles, c)
 				return
+			}
+
+			if info.length != addressingSize[addr] {
+				t.Errorf("Mismatch instruction size for instruction %s. Test file: %d, implementation: %d", instr.name, info.length, addressingSize[addr])
 			}
 
 			continue
@@ -140,7 +144,7 @@ var nameToAddressing map[string]int = map[string]int{
 }
 
 func getInstructionInfo(line string) (*instructionInfo, error) {
-	r, err := regexp.Compile(`^\|\s*([^|]*)\s*\|([^|]*)\|\s*(\S*)\s*\|\s*(\d)\s*\|\s*(\d)\*?\s*\|$`)
+	r, err := regexp.Compile(`^\|\s*([^|]*)\s*\|([^|]*)\|\s*(\S*)\s*\|\s*(\d+)\s*\|\s*(\d+)\*?\s*\|$`)
 
 	if err != nil {
 		return nil, err
@@ -162,6 +166,12 @@ func getInstructionInfo(line string) (*instructionInfo, error) {
 			return nil, err
 		}
 
+		length, err := strconv.ParseInt(res[4], 16, 64)
+
+		if err != nil {
+			return nil, err
+		}
+
 		cycles, err := strconv.ParseInt(res[5], 16, 64)
 
 		if err != nil {
@@ -173,6 +183,7 @@ func getInstructionInfo(line string) (*instructionInfo, error) {
 			assembler: strings.Trim(res[2], " "),
 			opCode:    uint8(opCode),
 			noCycles:  uint8(cycles),
+			length:    uint8(length),
 		}
 
 		return &info, nil

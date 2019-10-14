@@ -1,5 +1,7 @@
 package core
 
+import "fmt"
+
 // CPU represents 6502 processor
 type CPU struct {
 	// Program Counter
@@ -89,6 +91,10 @@ func (cpu *CPU) Reset() {
 	cpu.cyclesLeft = 8
 }
 
+func (cpu *CPU) GetCyclesLeft() uint8 {
+	return cpu.cyclesLeft
+}
+
 // Clock - execute single clock cycle
 func (cpu *CPU) Clock() {
 	if cpu.cyclesLeft == 0 {
@@ -106,9 +112,8 @@ func (cpu *CPU) Clock() {
 			return
 		}
 
-		// Read opcode
-		opCode := cpu.bus.Read(cpu.pc)
-		instruction, ok := cpu.instLookup[opCode]
+		// Read instruction
+		instruction, opCode, ok := cpu.getInstruction(cpu.pc)
 
 		// Unknown opcode - quit
 		if !ok {
@@ -116,13 +121,19 @@ func (cpu *CPU) Clock() {
 			return
 		}
 
-		// Increment Program Counter
-		cpu.pc++
+		// Find correct addressing mode for this op code
+		addrMode := instruction.opCodes[opCode].addrMode
+
+		// Set new cycles needed for this instruction
+		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
+
+		// Execute addressing mode
+		address, addCycleAddr := addressingModes[addrMode](cpu)
+
+		// Increment program counter
+		cpu.pc += uint16(addressingSize[addrMode])
 
 		// Execute instruction
-		addrMode := instruction.opCodes[opCode].addrMode
-		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
-		address, addCycleAddr := addressingModes[addrMode](cpu)
 		addCycleHandler := instruction.handler(cpu, address, opCode, addrMode)
 
 		// We might need to add additional cycle
@@ -133,6 +144,13 @@ func (cpu *CPU) Clock() {
 
 	// One cycle done
 	cpu.cyclesLeft--
+}
+
+func (cpu *CPU) getInstruction(addr uint16) (*instruction, uint8, bool) {
+	opCode := cpu.bus.Read(addr)
+	inst, ok := cpu.instLookup[opCode]
+
+	return inst, opCode, ok
 }
 
 func (cpu *CPU) scheduleIRQ() {
@@ -213,7 +231,6 @@ type CPUDebugInfo struct {
 }
 
 func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
-
 	return CPUDebugInfo{
 		PC: cpu.pc,
 		SP: cpu.sp,
@@ -222,4 +239,42 @@ func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
 		Y:  cpu.y,
 		P:  cpu.p,
 	}
+}
+
+func (cpu *CPU) Disassemble(addr uint16) (string, bool) {
+	opCode := cpu.bus.ReadDebug(addr)
+
+	inst, ok := cpu.instLookup[opCode]
+	addrMode := inst.opCodes[opCode].addrMode
+	address, _ := addressingModes[addrMode](cpu)
+	assembly := inst.name
+
+	switch addrMode {
+	case accumulatorAddressing:
+		assembly += " A"
+	case immediateAddressing:
+		assembly += fmt.Sprintf(" #$%02X  [IMM]", cpu.bus.ReadDebug(address))
+	case zeroPageAddressing:
+		assembly += fmt.Sprintf(" $%02X  [ZPA]", cpu.bus.ReadDebug(address))
+	case zeroPageXAddressing:
+		assembly += fmt.Sprintf(" $%02X,X  [ZPX]", cpu.bus.ReadDebug(address))
+	case zeroPageYAddressing:
+		assembly += fmt.Sprintf(" $%02X,Y  [ZPY]", cpu.bus.ReadDebug(address))
+	case relativeAddressing:
+		assembly += fmt.Sprintf(" $%02X  [REL]", cpu.bus.ReadDebug(address))
+	case absoluteAddressing:
+		assembly += fmt.Sprintf(" $%04X  [ABS]", cpu.bus.ReadDebug16(address))
+	case absoluteXAddressing:
+		assembly += fmt.Sprintf(" $%04X,X  [ABX]", cpu.bus.ReadDebug16(address))
+	case absoluteYAddressing:
+		assembly += fmt.Sprintf(" $%04X,Y  [ABX]", cpu.bus.ReadDebug16(address))
+	case indirectAddressing:
+		assembly += fmt.Sprintf(" ($%04X)  [IND]", cpu.bus.ReadDebug16(address))
+	case indirectXAddressing:
+		assembly += fmt.Sprintf(" ($%02X,X)  [INX]", cpu.bus.ReadDebug(address))
+	case indirectYAddressing:
+		assembly += fmt.Sprintf(" ($%02X),Y  [INY]", cpu.bus.ReadDebug(address))
+	}
+
+	return assembly, ok
 }
