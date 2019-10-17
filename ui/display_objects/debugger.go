@@ -43,15 +43,28 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	drawAssembly(d.CPU, e, 2, 21, reg.PC)
 
 	chr := d.CRT.GetCHRMem()
-	//
-	//println(chr[35])
-	for i := 0; i < len(chr)-8; i++ {
-		first := chr[i]
-		second := chr[i+8]
 
-		for j := uint8(0); j < 8; j++ {
-			b1 := getBit(first, 7-j)
-			b2 := getBit(second, 7-j)
+	for y := 0; y < 16; y++ {
+		for x := 0; x < 16; x++ {
+			d.drawSinglePattern(e, x+(y*16), chr, 10+(int32(x)*8), 40+(int32(y)*8))
+		}
+	}
+
+	d.drawSinglePattern(e, 1, chr, 108, 100)
+
+	return nil
+}
+
+func (d *Debugger) drawSinglePattern(e *engine.UIEngine, n int, chr []uint8, x, y int32) {
+	offset := int32(n * 16)
+
+	for i := 0; i < 8; i++ {
+		first := chr[offset+int32(i)]
+		second := chr[offset+int32(i)+8]
+
+		for j := 0; j < 8; j++ {
+			b1 := getBit(first, 7-uint8(j))
+			b2 := getBit(second, 7-uint8(j))
 
 			clr := (b2 << 1) | b1
 			if clr != 0 {
@@ -66,19 +79,15 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 					b = 0xff
 				}
 
-				e.DrawPixel(10+int32(j), 30+int32(i), r, g, b, a)
+				e.DrawPixel(x+int32(j), y+int32(i), r, g, b, a)
 			}
 
 		}
 
 	}
-
-	return nil
 }
 
 func getBit(i uint8, n uint8) uint8 {
-	i >>= n
-
 	return (i >> n) & 1
 }
 
