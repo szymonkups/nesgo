@@ -4,28 +4,69 @@ type PPU struct {
 	scanLine        int16
 	cycle           int16
 	isFrameComplete bool
+	bus             *bus
 }
 
-func (_ *PPU) Read(addr uint16) (uint8, bool) {
+// NewCPU performs cpu initialization
+// TODO: use single lookup for all cpu instances, use init() method for package
+// to initialize it
+func NewPPU(bus *bus) *PPU {
+	return &PPU{
+		scanLine:        0,
+		cycle:           0,
+		isFrameComplete: false,
+		bus:             bus,
+	}
+}
+
+func (_ *PPU) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 	if addr >= 0x2000 && addr <= 0x3FFF {
-		// TODO: read from ppu registers
-		// it's 7 bytes repeated
-		// return ppu.read(addr & 0x0007)
-		return 0x00, true
+		switch addr & 0x0007 {
+		case 0x00:
+			// PPU control register 1 - PPUCTRL - write only
+			return 0x00, true
+
+		case 0x01:
+			// PPU Control Register 2 - PPUMASK - write only
+			return 0x00, true
+
+		case 0x02:
+			// PPU Status Register - PPUSTATUS - read only
+			// TODO implement reading PPUSTATUS
+			return 0xFF, true
+
+		case 0x03:
+			// Sprite Memory Address - OAMADDR - write only
+			return 0x00, true
+
+		case 0x04:
+			// Sprite Memory Data - OAMDATA - read/write
+			// TODO implement reading OAMDATA
+			return 0x00, true
+
+		case 0x05:
+			// Screen Scroll Offset - PPUSCROLL - write only
+			return 0x00, true
+
+		case 0x06:
+			// PPU Memory Address - PPUADDR - write only
+			return 0x00, true
+
+		case 0x07:
+			// PPU Memory Data - PPUDATA - read/write
+			// TODO implement reading PPUDATA
+			return 0x00, true
+		}
 	}
 
 	return 0x00, false
 }
 
-func (ppu *PPU) ReadDebug(addr uint16) (uint8, bool) {
-	return ppu.Read(addr)
-}
-
-func (_ *PPU) Write(addr uint16, data uint8) bool {
+func (_ *PPU) Write(_ string, addr uint16, data uint8, _ bool) bool {
 	if addr >= 0x2000 && addr <= 0x3FFF {
-		// TODO: write to ppu registers
+		// TODO: write to PPU registers
 		// it's 7 bytes repeated
-		// return ppu.write(addr & 0x0007, data)
+		// return PPU.write(addr & 0x0007, data)
 		return true
 	}
 
@@ -44,6 +85,9 @@ func (ppu *PPU) Clock() {
 			ppu.isFrameComplete = true
 		}
 	}
+}
+
+func (ppu *PPU) GetPatternTables() {
 }
 
 type PPUColor struct {

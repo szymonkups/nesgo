@@ -20,7 +20,7 @@ const (
 	windowHeight = 240
 )
 
-func (ui *UI) Init(cpu *core.CPU) error {
+func (ui *UI) Init(cpu *core.CPU, ppu *core.PPU, crt *core.Cartridge) error {
 	ui.engine = new(engine.UIEngine)
 	err := ui.engine.Init()
 	if err != nil {
@@ -45,7 +45,7 @@ func (ui *UI) Init(cpu *core.CPU) error {
 	}
 
 	// Initialize all display objects
-	ui.debugger = &display_objects.Debugger{CPU: cpu}
+	ui.debugger = &display_objects.Debugger{CPU: cpu, PPU: ppu, CRT: crt}
 
 	return nil
 }

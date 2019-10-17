@@ -101,6 +101,11 @@ func (ui *UIEngine) FillRect(x, y, w, h int32, r, g, b, a uint8) {
 	ui.renderer.FillRect(&rect)
 }
 
+func (ui *UIEngine) DrawPixel(x, y int32, r, g, b, a uint8) {
+	ui.renderer.SetDrawColor(r, g, b, a)
+	ui.renderer.DrawPoint(x, y)
+}
+
 func (ui *UIEngine) DrawText(text string, x int32, y int32, r, g, b, a uint8) (err error) {
 	surface, err := ui.font.RenderUTF8Blended(text, sdl.Color{
 		R: r,

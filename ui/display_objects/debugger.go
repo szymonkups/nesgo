@@ -8,6 +8,8 @@ import (
 
 type Debugger struct {
 	CPU *core.CPU
+	PPU *core.PPU
+	CRT *core.Cartridge
 }
 
 func (d *Debugger) Draw(e *engine.UIEngine) error {
@@ -39,7 +41,45 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 
 	// Draw current memory range
 	drawAssembly(d.CPU, e, 2, 21, reg.PC)
+
+	chr := d.CRT.GetCHRMem()
+	//
+	//println(chr[35])
+	for i := 0; i < len(chr)-8; i++ {
+		first := chr[i]
+		second := chr[i+8]
+
+		for j := uint8(0); j < 8; j++ {
+			b1 := getBit(first, 7-j)
+			b2 := getBit(second, 7-j)
+
+			clr := (b2 << 1) | b1
+			if clr != 0 {
+				var r, g, b, a uint8 = 0, 0, 0, 0xFF
+
+				switch clr {
+				case 1:
+					r = 0xff
+				case 2:
+					g = 0xff
+				case 3:
+					b = 0xff
+				}
+
+				e.DrawPixel(10+int32(j), 30+int32(i), r, g, b, a)
+			}
+
+		}
+
+	}
+
 	return nil
+}
+
+func getBit(i uint8, n uint8) uint8 {
+	i >>= n
+
+	return (i >> n) & 1
 }
 
 func (d *Debugger) GetChildren() []engine.Displayable {
@@ -92,14 +132,4 @@ func drawAssembly(cpu *core.CPU, e *engine.UIEngine, x, y int32, pc uint16) {
 	} else {
 		e.DrawText(fmt.Sprintf("$%04X   %s", addr, assembly), x, y, 0xFF, 0xFF, 0xFF, 0xFF)
 	}
-
-	//for i := int32(0); i < 27; i++ {
-	//	addr := int32(pc) + i - 13
-	//
-	//	if addr < 0 || addr > 0xFFFF {
-	//		continue
-	//	}
-	//
-	//	e.DrawText(fmt.Sprintf("%04X   BRK #$00 {IMM}", addr), x, y+(i*8), 0xFF, 0xFF, 0xFF, 0xFF)
-	//}
 }

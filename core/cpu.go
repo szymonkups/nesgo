@@ -29,7 +29,7 @@ type CPU struct {
 	instLookup map[uint8]*instruction
 
 	// Data bus to which CPU is connected
-	bus *Bus
+	bus *bus
 
 	// If true IRQ will be scheduled
 	isIRQScheduled bool
@@ -58,7 +58,7 @@ const (
 // NewCPU performs cpu initialization
 // TODO: use single lookup for all cpu instances, use init() method for package
 // to initialize it
-func NewCPU(bus *Bus) CPU {
+func NewCPU(bus *bus) *CPU {
 	cpu := CPU{}
 	cpu.bus = bus
 
@@ -71,7 +71,7 @@ func NewCPU(bus *Bus) CPU {
 
 	cpu.Reset()
 
-	return cpu
+	return &cpu
 }
 
 // Reset - resets cpu to known state
@@ -242,8 +242,8 @@ func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
 }
 
 func (cpu *CPU) Disassemble(addr uint16) (string, bool) {
-	opCode := cpu.bus.ReadDebug(addr)
 
+	opCode := cpu.bus.ReadDebug(addr)
 	inst, ok := cpu.instLookup[opCode]
 	addrMode := inst.opCodes[opCode].addrMode
 	address, _ := addressingModes[addrMode](cpu)
