@@ -44,7 +44,7 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 
 	chr := d.CRT.GetCHRMem()
 
-	for y := 0; y < 16; y++ {
+	for y := 0; y < 20; y++ {
 		for x := 0; x < 16; x++ {
 			d.drawSinglePattern(e, x+(y*16), chr, 10+(int32(x)*8), 40+(int32(y)*8))
 		}

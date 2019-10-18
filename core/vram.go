@@ -1,9 +1,8 @@
 package core
 
 type VRam struct {
-	patternTable  [0x2000]uint8
-	imagePalette  [0x10]uint8
-	spritePalette [0x10]uint8
+	patternTable [0x2000]uint8
+	palette      [0x20]uint8
 }
 
 func (vRam *VRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
@@ -19,11 +18,9 @@ func (vRam *VRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 	// Sprite palette.
 	if addr >= 0x3F00 {
 		addr = (addr & 0x00FF) % 0x20
-		if addr < 0x10 {
-			return vRam.imagePalette[addr], true
-		}
 
-		return vRam.spritePalette[addr-0x10], true
+		// Todo implement sprite/bg palette mirroring of bg color
+		return vRam.palette[addr], true
 	}
 
 	return 0x00, false

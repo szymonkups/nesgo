@@ -93,6 +93,6 @@ func main() {
 			panic(err)
 		}
 
-		sdl.Delay(1000 / 60)
+		//sdl.Delay(1000 / 60)
 	}
 }
