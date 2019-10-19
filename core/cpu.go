@@ -250,30 +250,32 @@ func (cpu *CPU) Disassemble(addr uint16) (string, bool) {
 	assembly := inst.name
 
 	switch addrMode {
+	case impliedAddressing:
+		assembly += " [IMP]"
 	case accumulatorAddressing:
 		assembly += " A"
 	case immediateAddressing:
-		assembly += fmt.Sprintf(" #$%02X  [IMM]", cpu.bus.ReadDebug(address))
+		assembly += fmt.Sprintf(" #$%02X  [IMM]", address)
 	case zeroPageAddressing:
-		assembly += fmt.Sprintf(" $%02X  [ZPA]", cpu.bus.ReadDebug(address))
+		assembly += fmt.Sprintf(" $%02X  [ZPA]", address)
 	case zeroPageXAddressing:
-		assembly += fmt.Sprintf(" $%02X,X  [ZPX]", cpu.bus.ReadDebug(address))
+		assembly += fmt.Sprintf(" $%02X,X  [ZPX]", address)
 	case zeroPageYAddressing:
-		assembly += fmt.Sprintf(" $%02X,Y  [ZPY]", cpu.bus.ReadDebug(address))
+		assembly += fmt.Sprintf(" $%02X,Y  [ZPY]", address)
 	case relativeAddressing:
-		assembly += fmt.Sprintf(" $%02X  [REL]", cpu.bus.ReadDebug(address))
+		assembly += fmt.Sprintf(" $%02X  [REL]", address)
 	case absoluteAddressing:
-		assembly += fmt.Sprintf(" $%04X  [ABS]", cpu.bus.ReadDebug16(address))
+		assembly += fmt.Sprintf(" $%04X  [ABS]", address)
 	case absoluteXAddressing:
-		assembly += fmt.Sprintf(" $%04X,X  [ABX]", cpu.bus.ReadDebug16(address))
+		assembly += fmt.Sprintf(" $%04X,X  [ABX]", address)
 	case absoluteYAddressing:
-		assembly += fmt.Sprintf(" $%04X,Y  [ABX]", cpu.bus.ReadDebug16(address))
+		assembly += fmt.Sprintf(" $%04X,Y  [ABX]", address)
 	case indirectAddressing:
-		assembly += fmt.Sprintf(" ($%04X)  [IND]", cpu.bus.ReadDebug16(address))
+		assembly += fmt.Sprintf(" ($%04X)  [IND]", address)
 	case indirectXAddressing:
-		assembly += fmt.Sprintf(" ($%02X,X)  [INX]", cpu.bus.ReadDebug(address))
+		assembly += fmt.Sprintf(" ($%02X,X)  [INX]", address)
 	case indirectYAddressing:
-		assembly += fmt.Sprintf(" ($%02X),Y  [INY]", cpu.bus.ReadDebug(address))
+		assembly += fmt.Sprintf(" ($%02X),Y  [INY]", address)
 	}
 
 	return assembly, ok

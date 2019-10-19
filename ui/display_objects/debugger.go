@@ -68,18 +68,9 @@ func (d *Debugger) drawSinglePattern(e *engine.UIEngine, n int, chr []uint8, x, 
 
 			clr := (b2 << 1) | b1
 			if clr != 0 {
-				var r, g, b, a uint8 = 0, 0, 0, 0xFF
+				color := d.PPU.GetColorFromPalette(0, clr)
 
-				switch clr {
-				case 1:
-					r = 0xff
-				case 2:
-					g = 0xff
-				case 3:
-					b = 0xff
-				}
-
-				e.DrawPixel(x+int32(j), y+int32(i), r, g, b, a)
+				e.DrawPixel(x+int32(j), y+int32(i), color.R, color.G, color.B, 0xFF)
 			}
 
 		}

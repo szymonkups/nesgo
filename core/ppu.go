@@ -33,7 +33,7 @@ func (_ *PPU) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 		case 0x02:
 			// PPU Status Register - PPUSTATUS - read only
 			// TODO implement reading PPUSTATUS
-			return 0xFF, true
+			return 0x00, true
 
 		case 0x03:
 			// Sprite Memory Address - OAMADDR - write only
@@ -96,7 +96,13 @@ type PPUColor struct {
 	B uint8
 }
 
-var palette = [0x40]*PPUColor{
+func (ppu *PPU) GetColorFromPalette(palette, pixel uint8) *PPUColor {
+	data := ppu.bus.Read(0x3F00 + uint16(palette)*4 + uint16(pixel))
+
+	return colorTable[data]
+}
+
+var colorTable = [0x40]*PPUColor{
 	{84, 84, 84},
 	{0, 30, 116},
 	{8, 16, 144},
