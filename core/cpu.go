@@ -99,7 +99,7 @@ func (cpu *CPU) GetCyclesLeft() uint8 {
 func (cpu *CPU) Clock() {
 	if cpu.cyclesLeft == 0 {
 
-		// Check for scheduled interrutpts
+		// Check for scheduled interrupts
 		if cpu.isNMIScheduled {
 			cpu.handleInterrupt(0xFFFA)
 			cpu.isNMIScheduled = false
@@ -159,7 +159,7 @@ func (cpu *CPU) scheduleIRQ() {
 	}
 }
 
-func (cpu *CPU) scheduleNMI() {
+func (cpu *CPU) ScheduleNMI() {
 	cpu.isNMIScheduled = true
 }
 

@@ -70,7 +70,7 @@ func (bus *bus) readFromBus(addr uint16, debug bool) uint8 {
 		}
 	}
 
-	log.Printf("Trying to read from address 0x%X from the bus \"%s\"but there is no device to handle it.\n", addr, bus.id)
+	log.Printf("Trying to read from address 0x%X from the bus \"%s\" but there is no device to handle it.\n", addr, bus.id)
 	return 0x00
 }
 
@@ -84,5 +84,5 @@ func (bus *bus) writeToBus(addr uint16, val uint8, debug bool) {
 		}
 	}
 
-	log.Printf("Trying to write to address 0x%X on the bus but there is no device to handle it.\n", addr)
+	log.Printf("Trying to write to address 0x%X on the bus \"%s\" but there is no device to handle it.\n", addr, bus.id)
 }

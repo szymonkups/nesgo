@@ -1,39 +1,68 @@
 package core
 
+import (
+	"fmt"
+	"github.com/szymonkups/nesgo/core/ppu"
+)
+
 type PPU struct {
+	NMI bool
+
 	scanLine        int16
 	cycle           int16
 	isFrameComplete bool
 	bus             *bus
+	ctrlRegister    *ppu.ControlRegister
+	statusRegister  *ppu.StatusRegister
+	maskRegister    *ppu.MaskRegister
+	addrRegister    *ppu.AddressRegister
+	dataBuffer      uint8
 }
 
-// NewCPU performs cpu initialization
-// TODO: use single lookup for all cpu instances, use init() method for package
-// to initialize it
 func NewPPU(bus *bus) *PPU {
-	return &PPU{
-		scanLine:        0,
+	newPPU := &PPU{
+		scanLine:        -1,
 		cycle:           0,
 		isFrameComplete: false,
 		bus:             bus,
+		ctrlRegister:    new(ppu.ControlRegister),
+		statusRegister:  new(ppu.StatusRegister),
+		maskRegister:    new(ppu.MaskRegister),
+		addrRegister:    new(ppu.AddressRegister),
+		dataBuffer:      0,
 	}
+
+	newPPU.ctrlRegister.Write(0b00000000)
+	newPPU.statusRegister.Write(0b00000000)
+	newPPU.maskRegister.Write(0b00000000)
+
+	// Write to times to zero it
+	newPPU.addrRegister.Write(0b00000000)
+	newPPU.addrRegister.Write(0b00000000)
+
+	return newPPU
 }
 
-func (_ *PPU) Read(_ string, addr uint16, _ bool) (uint8, bool) {
+func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
+	if debug {
+		panic(fmt.Errorf("debug read from ppu is not implemented yet"))
+	}
+
 	if addr >= 0x2000 && addr <= 0x3FFF {
 		switch addr & 0x0007 {
 		case 0x00:
-			// PPU control register 1 - PPUCTRL - write only
+			// PPU control register - PPUCTRL - write only
 			return 0x00, true
 
 		case 0x01:
-			// PPU Control Register 2 - PPUMASK - write only
+			// PPU Mask Register 2 - PPUMASK - write only
 			return 0x00, true
 
 		case 0x02:
-			// PPU Status Register - PPUSTATUS - read only
-			// TODO implement reading PPUSTATUS
-			return 0x00, true
+			toReturn := (ppu.statusRegister.Read() & 0xE0) | (ppu.dataBuffer & 0x1F)
+			ppu.statusRegister.SetVBlank(false)
+			ppu.addrRegister.ResetLatch()
+			return toReturn, true
 
 		case 0x03:
 			// Sprite Memory Address - OAMADDR - write only
@@ -53,33 +82,94 @@ func (_ *PPU) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 			return 0x00, true
 
 		case 0x07:
-			// PPU Memory Data - PPUDATA - read/write
-			// TODO implement reading PPUDATA
-			return 0x00, true
+			address := ppu.addrRegister.GetAddress()
+
+			// Read is normally delayed by 1 cycle...
+			toReturn := ppu.dataBuffer
+			ppu.dataBuffer = ppu.bus.Read(address)
+
+			// ...until we read from palette memory
+			if address >= 0x3f00 {
+				toReturn = ppu.dataBuffer
+			}
+
+			ppu.addrRegister.Increment()
+			return toReturn, true
 		}
 	}
 
 	return 0x00, false
 }
 
-func (_ *PPU) Write(_ string, addr uint16, data uint8, _ bool) bool {
+func (ppu *PPU) Write(_ string, addr uint16, data uint8, debug bool) bool {
+	if debug {
+		panic(fmt.Errorf("debug write to ppu is not implemented yet"))
+	}
+
+	// PPU registers exposed on CPU bus
 	if addr >= 0x2000 && addr <= 0x3FFF {
-		// TODO: write to PPU registers
-		// it's 7 bytes repeated
-		// return PPU.write(addr & 0x0007, data)
-		return true
+		switch addr & 0x0007 {
+		case 0x00:
+			ppu.ctrlRegister.Write(data)
+			return true
+
+		case 0x01:
+			ppu.maskRegister.Write(data)
+			return true
+
+		case 0x02:
+			// PPU Status Register - PPUSTATUS - read only
+			return true
+
+		case 0x03:
+			// Sprite Memory Address - OAMADDR - write only
+			return true
+
+		case 0x04:
+			// Sprite Memory Data - OAMDATA - read/write
+			// TODO implement reading OAMDATA
+			return true
+
+		case 0x05:
+			// Screen Scroll Offset - PPUSCROLL - write only
+			return true
+
+		case 0x06:
+			ppu.addrRegister.Write(data)
+			return true
+
+		case 0x07:
+			ppu.bus.Write(ppu.addrRegister.GetAddress(), data)
+			ppu.addrRegister.Increment()
+			return true
+		}
 	}
 
 	return false
 }
 
 func (ppu *PPU) Clock() {
-	ppu.cycle++
 
+	// End VBlank
+	if ppu.scanLine == -1 && ppu.cycle == 1 {
+		ppu.statusRegister.SetVBlank(false)
+	}
+
+	// Start VBlank
+	if ppu.scanLine == 241 && ppu.cycle == 1 {
+		ppu.statusRegister.SetVBlank(true)
+		if ppu.ctrlRegister.NMIEnable {
+			ppu.NMI = true
+		}
+	}
+
+	ppu.cycle++
+	// Single line of screen is 256 but scan line goes above that to 341
 	if ppu.cycle >= 341 {
 		ppu.cycle = 0
 		ppu.scanLine++
 
+		// We have 240 lines on screen but it goes above that to 261 (240 - 261 is called VBlank)
 		if ppu.scanLine >= 261 {
 			ppu.scanLine = -1
 			ppu.isFrameComplete = true
@@ -98,6 +188,11 @@ type PPUColor struct {
 
 func (ppu *PPU) GetColorFromPalette(palette, pixel uint8) *PPUColor {
 	data := ppu.bus.Read(0x3F00 + uint16(palette)*4 + uint16(pixel))
+
+	if data >= 0x40 {
+		fmt.Printf("Trying to access palette index out of range: %d.\n", data)
+		return &PPUColor{0, 0, 0}
+	}
 
 	return colorTable[data]
 }

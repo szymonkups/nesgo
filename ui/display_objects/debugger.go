@@ -15,16 +15,16 @@ type Debugger struct {
 func (d *Debugger) Draw(e *engine.UIEngine) error {
 
 	// DRAW HEADER WITH FPS
-	e.DrawRect(0, 0, 256, 240, 0xFF, 0, 0, 0xFF)
-	e.FillRect(0, 0, 256, 8, 0xFF, 0, 0, 0xFF)
+	e.DrawRect(0, 0, 256*2, 240*2, 0xFF, 0, 0, 0xFF)
+	e.FillRect(0, 0, 256*2, 8, 0xFF, 0, 0, 0xFF)
 
-	err := e.DrawText("NES CPU DEBUGGER", 1, 0, 0, 0, 0, 0xFF)
+	err := e.DrawText("NES CPU AND PPU DEBUGGER", 1, 0, 0, 0, 0, 0xFF)
 
 	if err != nil {
 		return err
 	}
 
-	err = e.DrawText(fmt.Sprintf("FPS:%3d", e.FPS), 199, 0, 0, 0, 0, 0xFF)
+	err = e.DrawText(fmt.Sprintf("FPS:%3d", e.FPS), 455, 0, 0, 0, 0, 0xFF)
 
 	if err != nil {
 		return err
@@ -33,11 +33,11 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	// Draw registers
 	reg := d.CPU.GetDebugInfo()
 	drawRegister16(e, "PC", reg.PC, 2, 9)
-	drawRegister8(e, "SP", reg.SP, 55, 9)
-	drawRegister8(e, "A", reg.A, 92, 9)
-	drawRegister8(e, "X", reg.X, 121, 9)
-	drawRegister8(e, "Y", reg.Y, 150, 9)
-	drawFlags8(e, "NV--DIZC", reg.P, 179, 9)
+	drawRegister8(e, "SP", reg.SP, 63, 9)
+	drawRegister8(e, "A", reg.A, 108, 9)
+	drawRegister8(e, "X", reg.X, 145, 9)
+	drawRegister8(e, "Y", reg.Y, 182, 9)
+	drawFlags8(e, "NV--DIZC", reg.P, 219, 9)
 
 	// Draw current memory range
 	drawAssembly(d.CPU, e, 2, 21, reg.PC)
@@ -87,9 +87,9 @@ func (d *Debugger) GetChildren() []engine.Displayable {
 }
 
 func drawRegister16(e *engine.UIEngine, name string, value uint16, x, y int32) {
-	e.DrawRect(x, y, 52, 10, 0xFF, 0, 0, 0xFF)
+	e.DrawRect(x, y, 60, 10, 0xFF, 0, 0, 0xFF)
 	e.DrawText(name, x+1, y+1, 0xFF, 0, 0, 0xAA)
-	e.DrawText(fmt.Sprintf("%04X", value), x+19, y+1, 0xff, 0xff, 0xff, 0xff)
+	e.DrawText(fmt.Sprintf("$%04X", value), x+19, y+1, 0xff, 0xff, 0xff, 0xff)
 }
 
 func drawRegister8(e *engine.UIEngine, name string, value uint8, x, y int32) {
@@ -98,9 +98,9 @@ func drawRegister8(e *engine.UIEngine, name string, value uint8, x, y int32) {
 	if len(name) == 1 {
 		s = 8
 	}
-	e.DrawRect(x, y, 36-s, 10, 0xFF, 0, 0, 0xFF)
+	e.DrawRect(x, y, 44-s, 10, 0xFF, 0, 0, 0xFF)
 	e.DrawText(name, x+1, y+1, 0xFF, 0, 0, 0xAA)
-	e.DrawText(fmt.Sprintf("%02X", value), x+19-s, y+1, 0xff, 0xff, 0xff, 0xff)
+	e.DrawText(fmt.Sprintf("$%02X", value), x+19-s, y+1, 0xff, 0xff, 0xff, 0xff)
 }
 
 func drawFlags8(e *engine.UIEngine, registers string, value uint8, x, y int32) {

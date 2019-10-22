@@ -1,11 +1,12 @@
 package ui
 
 import (
+	"math"
+
 	"github.com/szymonkups/nesgo/core"
 	"github.com/szymonkups/nesgo/ui/display_objects"
 	"github.com/szymonkups/nesgo/ui/engine"
 	"github.com/szymonkups/nesgo/ui/engine/utils"
-	"math"
 )
 
 type UI struct {
@@ -16,8 +17,8 @@ type UI struct {
 }
 
 const (
-	windowWidth  = 256
-	windowHeight = 240
+	windowWidth  = 256 * 2
+	windowHeight = 240 * 2
 )
 
 func (ui *UI) Init(cpu *core.CPU, ppu *core.PPU, crt *core.Cartridge) error {
@@ -34,11 +35,11 @@ func (ui *UI) Init(cpu *core.CPU, ppu *core.PPU, crt *core.Cartridge) error {
 		return err
 	}
 
-	w := math.Floor(float64(screenW-150) / windowWidth)
-	h := math.Floor(float64(screenH-150) / windowHeight)
-	scale := int32(math.Min(w, h))
+	w := float64(screenW-150) / windowWidth
+	h := float64(screenH-150) / windowHeight
+	scale := math.Min(w, h)
 
-	err = ui.engine.CreateWindow(windowWidth*scale, windowHeight*scale, windowWidth, windowHeight)
+	err = ui.engine.CreateWindow(int32(scale*float64(windowWidth)), int32(scale*float64(windowHeight)), windowWidth, windowHeight)
 
 	if err != nil {
 		return err

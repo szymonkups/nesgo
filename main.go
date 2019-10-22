@@ -5,6 +5,7 @@ import (
 	"github.com/szymonkups/nesgo/core"
 	"github.com/szymonkups/nesgo/ui"
 	"github.com/veandco/go-sdl2/sdl"
+	"os"
 )
 
 func main() {
@@ -29,10 +30,11 @@ func main() {
 	ppuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
 	ppuBus.ConnectDevice(vRam)
 
-	err := crt.LoadFile("/home/szymon/Downloads/nes/nestest.nes")
+	err := crt.LoadFile("/home/szymon/Downloads/nes/baseball.nes")
 
 	if err != nil {
 		fmt.Printf("Could not load a file: %s.\n", err)
+		os.Exit(1)
 	}
 
 	cpu := core.NewCPU(cpuBus)
@@ -64,7 +66,10 @@ func main() {
 
 				// Step on enter
 				if t.GetType() == sdl.KEYDOWN && t.Keysym.Sym == sdl.K_RETURN {
-					cpu.Clock()
+					ppu.Clock()
+					if cycles%3 == 0 {
+						cpu.Clock()
+					}
 				}
 
 				// R key - reset
@@ -76,21 +81,24 @@ func main() {
 			}
 		}
 
-		//ppu.Clock()
-		//if cycles%3 == 0 {
-		//	cpu.Clock()
-		//}
-
-		for cpu.GetCyclesLeft() > 0 {
+		ppu.Clock()
+		if cycles%3 == 0 {
 			cpu.Clock()
+		}
+
+		if ppu.NMI {
+			ppu.NMI = false
+			cpu.ScheduleNMI()
 		}
 
 		cycles++
 
-		err = gui.DrawDebugger()
+		if cycles%1000 == 0 {
+			err = gui.DrawDebugger()
 
-		if err != nil {
-			panic(err)
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		//sdl.Delay(1000 / 60)
