@@ -17,7 +17,6 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	// DRAW HEADER WITH FPS
 	e.DrawRect(0, 0, 256*2, 240*2, 0xFF, 0, 0, 0xFF)
 	e.FillRect(0, 0, 256*2, 8, 0xFF, 0, 0, 0xFF)
-
 	err := e.DrawText("NES CPU AND PPU DEBUGGER", 1, 0, 0, 0, 0, 0xFF)
 
 	if err != nil {
@@ -29,7 +28,7 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	if err != nil {
 		return err
 	}
-
+	//
 	// Draw registers
 	reg := d.CPU.GetDebugInfo()
 	drawRegister16(e, "PC", reg.PC, 2, 9)
@@ -39,7 +38,7 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	drawRegister8(e, "Y", reg.Y, 182, 9)
 	drawFlags8(e, "NV--DIZC", reg.P, 219, 9)
 
-	// Draw current memory range
+	//// Draw current memory range
 	drawAssembly(d.CPU, e, 2, 21, reg.PC)
 
 	chr := d.CRT.GetCHRMem()
@@ -49,8 +48,6 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 			d.drawSinglePattern(e, x+(y*16), chr, 10+(int32(x)*8), 40+(int32(y)*8))
 		}
 	}
-
-	d.drawSinglePattern(e, 1, chr, 108, 100)
 
 	return nil
 }
@@ -68,6 +65,7 @@ func (d *Debugger) drawSinglePattern(e *engine.UIEngine, n int, chr []uint8, x, 
 
 			clr := (b2 << 1) | b1
 			if clr != 0 {
+				//d.PPU.GetColorFromPalette(0, clr)
 				color := d.PPU.GetColorFromPalette(0, clr)
 
 				e.DrawPixel(x+int32(j), y+int32(i), color.R, color.G, color.B, 0xFF)
@@ -125,7 +123,7 @@ func drawAssembly(cpu *core.CPU, e *engine.UIEngine, x, y int32, pc uint16) {
 	addr := int32(pc)
 	assembly, ok := cpu.Disassemble(pc)
 
-	e.FillRect(x, y, 252, 8, 0xFF, 0, 0, 0xFF)
+	e.FillRect(x, y, 292, 8, 0xFF, 0, 0, 0xFF)
 
 	if !ok {
 		e.DrawText(fmt.Sprintf("$%04X   #!UNKNOWN OPCODE!#", addr), x, y, 0xFF, 0xFF, 0xFF, 0xFF)

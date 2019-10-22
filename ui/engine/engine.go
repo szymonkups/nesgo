@@ -1,16 +1,19 @@
 package engine
 
 import (
+	"fmt"
 	"github.com/szymonkups/nesgo/ui/engine/utils"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
+	"strings"
 )
 
 type UIEngine struct {
-	font     *ttf.Font
-	window   *sdl.Window
-	renderer *sdl.Renderer
-	FPS      uint32
+	window       *sdl.Window
+	renderer     *sdl.Renderer
+	fontTextures map[string]*sdl.Texture
+	texture      *sdl.Texture
+	FPS          uint32
 }
 
 func (ui *UIEngine) Init() error {
@@ -21,6 +24,8 @@ func (ui *UIEngine) Init() error {
 	if err := ttf.Init(); err != nil {
 		return err
 	}
+
+	ui.fontTextures = map[string]*sdl.Texture{}
 
 	return nil
 }
@@ -35,11 +40,6 @@ func (ui *UIEngine) CreateWindow(w int32, h int32, logicalW int32, logicalH int3
 
 	ui.window = window
 
-	// Create font
-	if ui.font, err = ttf.OpenFont("./assets/kongtext/kongtext.ttf", 8); err != nil {
-		return err
-	}
-
 	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
 
 	if err != nil {
@@ -52,11 +52,57 @@ func (ui *UIEngine) CreateWindow(w int32, h int32, logicalW int32, logicalH int3
 		return err
 	}
 
-	renderer.SetDrawBlendMode(sdl.BLENDMODE_BLEND)
+	err = renderer.SetDrawBlendMode(sdl.BLENDMODE_BLEND)
+
+	if err != nil {
+		return err
+	}
 
 	ui.renderer = renderer
 
+	texture, err := renderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, logicalW, logicalH)
+
+	if err != nil {
+		return err
+	}
+
+	ui.texture = texture
+
 	return nil
+}
+
+const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&:-"
+
+func (ui *UIEngine) createFontTexture(r, g, b, a uint8) (*sdl.Texture, error) {
+	// Create font
+	font, err := ttf.OpenFont("./assets/kongtext/kongtext.ttf", 8)
+
+	if err != nil {
+		return nil, err
+	}
+
+	surface, err := font.RenderUTF8Blended(glyphs, sdl.Color{
+		R: r,
+		G: g,
+		B: b,
+		A: a,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer surface.Free()
+
+	tex, err := ui.renderer.CreateTextureFromSurface(surface)
+
+	if err != nil {
+		return nil, err
+	}
+
+	font.Close()
+
+	return tex, nil
 }
 
 func (ui *UIEngine) ClearScreen(r, g, b, a uint8) error {
@@ -85,6 +131,7 @@ func (ui *UIEngine) Render(root Displayable) {
 	}
 
 	root.Draw(ui)
+
 	ui.renderChildren(root.GetChildren())
 	ui.renderer.Present()
 }
@@ -106,48 +153,89 @@ func (ui *UIEngine) DrawPixel(x, y int32, r, g, b, a uint8) {
 	ui.renderer.DrawPoint(x, y)
 }
 
+var letterSrcRect = sdl.Rect{
+	X: 0,
+	Y: 0,
+	W: 9,
+	H: 9,
+}
+
+var letterDstRect = sdl.Rect{
+	X: 0,
+	Y: 0,
+	W: 9,
+	H: 9,
+}
+
 func (ui *UIEngine) DrawText(text string, x int32, y int32, r, g, b, a uint8) (err error) {
-	surface, err := ui.font.RenderUTF8Blended(text, sdl.Color{
-		R: r,
-		G: g,
-		B: b,
-		A: a,
-	})
+	// Load font texture if present, otherwise create new one
+	fontId := fmt.Sprintf("#%02X%02X%02X%02X", r, g, b, a)
+	tex, ok := ui.fontTextures[fontId]
 
-	if err != nil {
-		return err
+	if !ok {
+		tex, err = ui.createFontTexture(r, g, b, a)
+
+		if err != nil {
+			return err
+		}
+
+		ui.fontTextures[fontId] = tex
 	}
 
-	defer surface.Free()
+	for i, l := range text {
+		index := strings.IndexByte(glyphs, byte(l))
+		if index == -1 {
+			continue
+		}
 
-	tex, err := ui.renderer.CreateTextureFromSurface(surface)
+		letterSrcRect.X = int32(index * 8)
+		letterDstRect.X = x + int32(i)*7
+		letterDstRect.Y = y
 
-	if err != nil {
-		return err
+		ui.renderer.Copy(tex, &letterSrcRect, &letterDstRect)
+
 	}
 
-	defer tex.Destroy()
-
-	tex.SetAlphaMod(a)
-
-	dst := sdl.Rect{
-		X: x,
-		Y: y,
-		W: surface.ClipRect.W,
-		H: surface.ClipRect.H,
-	}
-
-	err = ui.renderer.Copy(tex, &surface.ClipRect, &dst)
-
-	if err != nil {
-		return err
-	}
-
+	//	surface, err := ui.font.RenderUTF8Blended(text, sdl.Color{
+	//		R: r,
+	//		G: g,
+	//		B: b,
+	//		A: a,
+	//	})
+	//
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	defer surface.Free()
+	//
+	//	tex, err := ui.renderer.CreateTextureFromSurface(surface)
+	//
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	defer tex.Destroy()
+	//
+	//	tex.SetAlphaMod(a)
+	//
+	//	dst := sdl.Rect{
+	//		X: x,
+	//		Y: y,
+	//		W: surface.ClipRect.W,
+	//		H: surface.ClipRect.H,
+	//	}
+	//
+	//	err = ui.renderer.Copy(tex, &surface.ClipRect, &dst)
+	//
+	//	if err != nil {
+	//		return err
+	//	}
+	//
 	return nil
 }
 
 func (ui *UIEngine) Destroy() {
-	ui.font.Close()
 	sdl.Quit()
 	ttf.Quit()
 }
