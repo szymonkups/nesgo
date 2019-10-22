@@ -30,7 +30,7 @@ func main() {
 	ppuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
 	ppuBus.ConnectDevice(vRam)
 
-	err := crt.LoadFile("/home/szymon/Downloads/nes/baseball.nes")
+	err := crt.LoadFile("/home/szymon/Downloads/nes/nestest.nes")
 
 	if err != nil {
 		fmt.Printf("Could not load a file: %s.\n", err)
