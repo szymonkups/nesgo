@@ -30,7 +30,7 @@ func main() {
 	ppuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
 	ppuBus.ConnectDevice(vRam)
 
-	err := crt.LoadFile("/home/szymon/Downloads/nes/baseball.nes")
+	err := crt.LoadFile("/home/szymon/Downloads/nes/nestest.nes")
 
 	if err != nil {
 		fmt.Printf("Could not load a file: %s.\n", err)
@@ -70,6 +70,8 @@ func main() {
 					if cycles%3 == 0 {
 						cpu.Clock()
 					}
+
+					cycles++
 				}
 
 				// R key - reset
@@ -81,17 +83,18 @@ func main() {
 			}
 		}
 
+		//for cpu.GetCyclesLeft()*3 > 0 {
 		ppu.Clock()
 		if cycles%3 == 0 {
 			cpu.Clock()
 		}
+		cycles++
+		//}
 
 		if ppu.NMI {
 			ppu.NMI = false
 			cpu.ScheduleNMI()
 		}
-
-		cycles++
 
 		err = gui.DrawDebugger()
 
@@ -99,6 +102,6 @@ func main() {
 			panic(err)
 		}
 
-		//sdl.Delay(1000 / 60)
+		//sdl.Delay(1000 / 10)
 	}
 }

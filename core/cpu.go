@@ -1,6 +1,6 @@
 package core
 
-import "fmt"
+import "github.com/szymonkups/nesgo/core/addressing"
 
 // CPU represents 6502 processor
 type CPU struct {
@@ -122,19 +122,23 @@ func (cpu *CPU) Clock() {
 		}
 
 		// Find correct addressing mode for this op code
-		addrMode := instruction.opCodes[opCode].addrMode
+		addrModeId := instruction.opCodes[opCode].addrMode
 
 		// Set new cycles needed for this instruction
 		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
 
 		// Execute addressing mode
-		address, addCycleAddr := addressingModes[addrMode](cpu)
+		// TODO: Think what to do here
+		addrMode, _ := addressing.GetAddressingById(addrModeId)
+		address, addCycleAddr := addrMode.CalculateAddress(cpu.pc, cpu.x, cpu.y, func(addr uint16) uint8 {
+			return cpu.bus.Read(addr)
+		})
 
 		// Increment program counter
-		cpu.pc += uint16(addressingSize[addrMode])
+		cpu.pc += uint16(addrMode.Size)
 
 		// Execute instruction
-		addCycleHandler := instruction.handler(cpu, address, opCode, addrMode)
+		addCycleHandler := instruction.handler(cpu, address, opCode, addrModeId)
 
 		// We might need to add additional cycle
 		if addCycleAddr && addCycleHandler {
@@ -241,42 +245,58 @@ func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
 	}
 }
 
-func (cpu *CPU) Disassemble(addr uint16) (string, bool) {
+type DisassembleInfo struct {
+	OpCode          uint8
+	InstructionName string
+	Operand         string
+	AddressingName  string
+	Size            uint8
+}
 
-	opCode := cpu.bus.ReadDebug(addr)
-	inst, ok := cpu.instLookup[opCode]
-	addrMode := inst.opCodes[opCode].addrMode
-	address, _ := addressingModes[addrMode](cpu)
-	assembly := inst.name
+func (cpu *CPU) Disassemble(addr uint16) (*DisassembleInfo, bool) {
+	info := DisassembleInfo{}
+	info.OpCode = cpu.bus.ReadDebug(addr)
+	inst, ok := cpu.instLookup[info.OpCode]
 
-	switch addrMode {
-	case impliedAddressing:
-		assembly += " [IMP]"
-	case accumulatorAddressing:
-		assembly += " A"
-	case immediateAddressing:
-		assembly += fmt.Sprintf(" #$%02X  [IMM]", address)
-	case zeroPageAddressing:
-		assembly += fmt.Sprintf(" $%02X  [ZPA]", address)
-	case zeroPageXAddressing:
-		assembly += fmt.Sprintf(" $%02X,X  [ZPX]", address)
-	case zeroPageYAddressing:
-		assembly += fmt.Sprintf(" $%02X,Y  [ZPY]", address)
-	case relativeAddressing:
-		assembly += fmt.Sprintf(" $%02X  [REL]", address)
-	case absoluteAddressing:
-		assembly += fmt.Sprintf(" $%04X  [ABS]", address)
-	case absoluteXAddressing:
-		assembly += fmt.Sprintf(" $%04X,X  [ABX]", address)
-	case absoluteYAddressing:
-		assembly += fmt.Sprintf(" $%04X,Y  [ABX]", address)
-	case indirectAddressing:
-		assembly += fmt.Sprintf(" ($%04X)  [IND]", address)
-	case indirectXAddressing:
-		assembly += fmt.Sprintf(" ($%02X,X)  [INX]", address)
-	case indirectYAddressing:
-		assembly += fmt.Sprintf(" ($%02X),Y  [INY]", address)
+	if !ok {
+		return nil, false
 	}
 
-	return assembly, ok
+	info.InstructionName = inst.name
+
+	// TODO: handle errors here
+	addrMode, _ := addressing.GetAddressingById(inst.opCodes[info.OpCode].addrMode)
+	address, _ := addrMode.CalculateAddress(addr, cpu.x, cpu.y, func(addr uint16) uint8 {
+		return cpu.bus.ReadDebug(addr)
+	})
+	info.Operand = addrMode.Format(address)
+	info.AddressingName = addrMode.Name
+	info.Size = addrMode.Size
+
+	return &info, true
+
+	//info.instructionName = inst.name
+
+	//
+	//for i := 0; i < 10; i++ {
+	//	opCode :=
+	//	inst, ok := cpu.instLookup[opCode]
+	//	if !ok {
+	//		return nil, false
+	//	}
+	//
+	//
+	//
+	//	buf.Truncate(0)
+	//	fmt.Fprintf(w, "$%04X %s %s\t{%s}", addr, inst.name, addrMode.format(address), addrMode.name)
+	//	w.Flush()
+	//	code[i] = buf.String()
+	//	addr += uint16(addrMode.size)
+	//}
+	//
+	//return code, true
+}
+
+func (cpu *CPU) Clone(addr uint16) CPU {
+	return *cpu
 }

@@ -36,7 +36,7 @@ func NewPPU(bus *bus) *PPU {
 	newPPU.statusRegister.Write(0b00000000)
 	newPPU.maskRegister.Write(0b00000000)
 
-	// Write to times to zero it
+	// Write two times to zero it
 	newPPU.addrRegister.Write(0b00000000)
 	newPPU.addrRegister.Write(0b00000000)
 
@@ -60,7 +60,7 @@ func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
 
 		case 0x02:
 			toReturn := (ppu.statusRegister.Read() & 0xE0) | (ppu.dataBuffer & 0x1F)
-			ppu.statusRegister.SetVBlank(false)
+			ppu.statusRegister.SetVBlank(true)
 			ppu.addrRegister.ResetLatch()
 			return toReturn, true
 
@@ -184,6 +184,17 @@ type PPUColor struct {
 	R uint8
 	G uint8
 	B uint8
+}
+
+func (ppu *PPU) GetUniversalBGColor() *PPUColor {
+	i := ppu.bus.Read(0x3F00)
+
+	if i >= 0x40 {
+		fmt.Printf("Trying to access palette index out of range: %d.\n", i)
+		return &PPUColor{0, 0, 0}
+	}
+
+	return colorTable[i]
 }
 
 func (ppu *PPU) GetColorFromPalette(palette, pixel uint8) *PPUColor {

@@ -7,3 +7,4 @@
 # Built executable
 main
 nesgo
+coverage.out

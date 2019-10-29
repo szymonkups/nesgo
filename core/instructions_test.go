@@ -3,6 +3,7 @@ package core
 import (
 	"bufio"
 	"fmt"
+	"github.com/szymonkups/nesgo/core/addressing"
 	"os"
 	"regexp"
 	"strconv"
@@ -63,13 +64,20 @@ func TestInstructions(t *testing.T) {
 				return
 			}
 
+			addrMode, ok := addressing.GetAddressingById(addr)
+
+			if !ok {
+				t.Errorf("Could not find addressing mode %d for instruction %s", addr, instr.name)
+				return
+			}
+
 			if info.noCycles != c {
 				t.Errorf("Mismatch in cycles for instricion %s. Test file: %d, implementation: %d", instr.name, info.noCycles, c)
 				return
 			}
 
-			if info.length != addressingSize[addr] {
-				t.Errorf("Mismatch instruction size for instruction %s. Test file: %d, implementation: %d", instr.name, info.length, addressingSize[addr])
+			if info.length != addrMode.Size {
+				t.Errorf("Mismatch instruction size for instruction %s. Test file: %d, implementation: %d", instr.name, info.length, addrMode.Size)
 			}
 
 			continue
@@ -128,19 +136,19 @@ type instructionInfo struct {
 }
 
 var nameToAddressing map[string]int = map[string]int{
-	"Accumulator":  accumulatorAddressing,
-	"Implied":      impliedAddressing,
-	"Immediate":    immediateAddressing,
-	"Zero Page":    zeroPageAddressing,
-	"Zero Page,X":  zeroPageXAddressing,
-	"Zero Page,Y":  zeroPageYAddressing,
-	"Relative":     relativeAddressing,
-	"Absolute":     absoluteAddressing,
-	"Absolute,X":   absoluteXAddressing,
-	"Absolute,Y":   absoluteYAddressing,
-	"Indirect":     indirectAddressing,
-	"(Indirect,X)": indirectXAddressing,
-	"(Indirect),Y": indirectYAddressing,
+	"Accumulator":  addressing.AccumulatorAddressing,
+	"Implied":      addressing.ImpliedAddressing,
+	"Immediate":    addressing.ImmediateAddressing,
+	"Zero Page":    addressing.ZeroPageAddressing,
+	"Zero Page,X":  addressing.ZeroPageXAddressing,
+	"Zero Page,Y":  addressing.ZeroPageYAddressing,
+	"Relative":     addressing.RelativeAddressing,
+	"Absolute":     addressing.AbsoluteAddressing,
+	"Absolute,X":   addressing.AbsoluteXAddressing,
+	"Absolute,Y":   addressing.AbsoluteYAddressing,
+	"Indirect":     addressing.IndirectAddressing,
+	"(Indirect,X)": addressing.IndirectXAddressing,
+	"(Indirect),Y": addressing.IndirectYAddressing,
 }
 
 func getInstructionInfo(line string) (*instructionInfo, error) {

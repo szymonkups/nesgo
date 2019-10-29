@@ -1,9 +1,11 @@
 package display_objects
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/szymonkups/nesgo/core"
 	"github.com/szymonkups/nesgo/ui/engine"
+	"text/tabwriter"
 )
 
 type Debugger struct {
@@ -15,7 +17,7 @@ type Debugger struct {
 func (d *Debugger) Draw(e *engine.UIEngine) error {
 
 	// DRAW HEADER WITH FPS
-	e.DrawRect(0, 0, 256*2, 240*2, 0xFF, 0, 0, 0xFF)
+	//e.DrawRect(0, 0, 256*2, 240*2, 0xFF, 0, 0, 0xFF)
 	e.FillRect(0, 0, 256*2, 8, 0xFF, 0, 0, 0xFF)
 	err := e.DrawText("NES CPU AND PPU DEBUGGER", 1, 0, 0, 0, 0, 0xFF)
 
@@ -38,18 +40,54 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	drawRegister8(e, "Y", reg.Y, 182, 9)
 	drawFlags8(e, "NV--DIZC", reg.P, 219, 9)
 
-	//// Draw current memory range
-	drawAssembly(d.CPU, e, 2, 21, reg.PC)
+	// Draw current memory range
+	d.drawAssembly(e, 2, 21, reg.PC)
 
-	chr := d.CRT.GetCHRMem()
+	// Draw palettes
+	d.drawPalettes(e, 0, 130)
 
-	for y := 0; y < 20; y++ {
-		for x := 0; x < 16; x++ {
-			d.drawSinglePattern(e, x+(y*16), chr, 10+(int32(x)*8), 40+(int32(y)*8))
-		}
-	}
+	//chr := d.CRT.GetCHRMem()
+	//
+	//for y := 0; y < 20; y++ {
+	//	for x := 0; x < 16; x++ {
+	//		d.drawSinglePattern(e, x+(y*16), chr, 10+(int32(x)*8), 40+(int32(y)*8))
+	//	}
+	//}
 
 	return nil
+}
+
+func (d *Debugger) drawPalettes(e *engine.UIEngine, x, y int32) {
+	e.FillRect(x, y, 98, 9, 0xFF, 0, 0, 0xFF)
+	e.DrawRect(x, y, 300, 100, 0xFF, 0, 0, 0xFF)
+	e.DrawText("PPU", x+1, y+1, 0, 0, 0, 0xFF)
+
+	e.DrawText("BG COLOR", x+1, y+10, 0xFF, 0, 0, 0xFF)
+	cl := d.PPU.GetUniversalBGColor()
+	e.FillRect(x+90, y+10, 8, 8, cl.R, cl.G, cl.B, 0xFF)
+
+	d.drawPalette(e, "BG #0", 0, x, y)
+	d.drawPalette(e, "BG #1", 1, x, y+10)
+	d.drawPalette(e, "BG #2", 2, x, y+20)
+	d.drawPalette(e, "BG #3", 3, x, y+30)
+
+	d.drawPalette(e, "SP #0", 4, x, y+40)
+	d.drawPalette(e, "SP #1", 5, x, y+50)
+	d.drawPalette(e, "SP #2", 6, x, y+60)
+	d.drawPalette(e, "SP #3", 7, x, y+70)
+}
+
+func (d *Debugger) drawPalette(e *engine.UIEngine, name string, index uint8, x, y int32) {
+	e.DrawText(name, x+1, y+20, 0xFF, 0, 0, 0xFF)
+
+	cl := d.PPU.GetColorFromPalette(index, 4)
+	e.FillRect(x+90, y+20, 8, 8, cl.R, cl.G, cl.B, 0xFF)
+	cl = d.PPU.GetColorFromPalette(index, 3)
+	e.FillRect(x+80, y+20, 8, 8, cl.R, cl.G, cl.B, 0xFF)
+	cl = d.PPU.GetColorFromPalette(index, 2)
+	e.FillRect(x+70, y+20, 8, 8, cl.R, cl.G, cl.B, 0xFF)
+	cl = d.PPU.GetColorFromPalette(index, 1)
+	e.FillRect(x+60, y+20, 8, 8, cl.R, cl.G, cl.B, 0xFF)
 }
 
 func (d *Debugger) drawSinglePattern(e *engine.UIEngine, n int, chr []uint8, x, y int32) {
@@ -119,15 +157,25 @@ func drawFlags8(e *engine.UIEngine, registers string, value uint8, x, y int32) {
 	}
 }
 
-func drawAssembly(cpu *core.CPU, e *engine.UIEngine, x, y int32, pc uint16) {
-	addr := int32(pc)
-	assembly, ok := cpu.Disassemble(pc)
-
+func (d *Debugger) drawAssembly(e *engine.UIEngine, x, y int32, startAddr uint16) {
+	buf := new(bytes.Buffer)
+	w := tabwriter.NewWriter(buf, 31, 1, 0, ' ', 0)
 	e.FillRect(x, y, 292, 8, 0xFF, 0, 0, 0xFF)
+	addr := startAddr
 
-	if !ok {
-		e.DrawText(fmt.Sprintf("$%04X   #!UNKNOWN OPCODE!#", addr), x, y, 0xFF, 0xFF, 0xFF, 0xFF)
-	} else {
-		e.DrawText(fmt.Sprintf("$%04X   %s", addr, assembly), x, y, 0xFF, 0xFF, 0xFF, 0xFF)
+	for i := 0; i < 10; i++ {
+		info, ok := d.CPU.Disassemble(addr)
+
+		if !ok {
+			continue
+		}
+
+		buf.Truncate(0)
+		fmt.Fprintf(w, "$%04X %s %s\t{%s}", addr, info.InstructionName, info.Operand, info.AddressingName)
+		w.Flush()
+
+		e.DrawText(buf.String(), x, y+(10*int32(i)), 0xFF, 0xFF, 0xFF, 0xFF)
+
+		addr += uint16(info.Size)
 	}
 }

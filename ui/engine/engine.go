@@ -71,7 +71,7 @@ func (ui *UIEngine) CreateWindow(w int32, h int32, logicalW int32, logicalH int3
 	return nil
 }
 
-const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&:-"
+const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&:-,.{}[]()"
 
 func (ui *UIEngine) createFontTexture(r, g, b, a uint8) (*sdl.Texture, error) {
 	// Create font
@@ -156,14 +156,14 @@ func (ui *UIEngine) DrawPixel(x, y int32, r, g, b, a uint8) {
 var letterSrcRect = sdl.Rect{
 	X: 0,
 	Y: 0,
-	W: 9,
+	W: 8,
 	H: 9,
 }
 
 var letterDstRect = sdl.Rect{
 	X: 0,
 	Y: 0,
-	W: 9,
+	W: 8,
 	H: 9,
 }
 
@@ -189,7 +189,7 @@ func (ui *UIEngine) DrawText(text string, x int32, y int32, r, g, b, a uint8) (e
 		}
 
 		letterSrcRect.X = int32(index * 8)
-		letterDstRect.X = x + int32(i)*7
+		letterDstRect.X = x + int32(i)*8
 		letterDstRect.Y = y
 
 		ui.renderer.Copy(tex, &letterSrcRect, &letterDstRect)

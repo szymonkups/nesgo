@@ -3,6 +3,7 @@ package core
 type VRam struct {
 	patternTable [0x2000]uint8
 	palette      [0x20]uint8
+	nametable    [0x1000]uint8
 }
 
 var paletteMappings = map[uint16]uint16{
@@ -20,6 +21,12 @@ func (vRam *VRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 	// TODO: this is probably not needed as always provided by cartridges (I hope!)
 	if addr <= 0x1FFF {
 		return vRam.patternTable[addr], true
+	}
+
+	if addr >= 0x2000 && addr < 0x3F00 {
+		addr = (addr - 0x2000) % 0x1000
+
+		return vRam.nametable[addr], true
 	}
 
 	// Sprite palette.
@@ -49,6 +56,13 @@ func (vRam *VRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
 	// TODO: this is probably not needed as always provided by cartridges (I hope!)
 	if addr <= 0x1FFF {
 		vRam.patternTable[addr] = data
+		return true
+	}
+
+	if addr >= 0x2000 && addr < 0x3F00 {
+		addr = (addr - 0x2000) % 0x1000
+		vRam.nametable[addr] = data
+
 		return true
 	}
 
