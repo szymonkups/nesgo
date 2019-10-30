@@ -245,12 +245,11 @@ var addressingModes = map[int]*addressingMode{
 		// Indirect X addressing - page zero addressing where we need to add X register
 		// to next byte after op code (without carry, ex. 200 + 66 = 10) to obtain low
 		// byte of the actual data address.
-		// High byte is next to it.
 		CalculateAddress: func(pc uint16, x, y uint8, read ReadFunction) (uint16, bool) {
 			arg := read(pc + 1)
 
-			low := arg + x
-			high := low + 1
+			low := read(uint16(arg + x))
+			high := read(uint16(arg + x + 1))
 
 			var addr = (uint16(high) << 8) | uint16(low)
 
@@ -264,15 +263,15 @@ var addressingModes = map[int]*addressingMode{
 		Format: func(address uint16) string { return fmt.Sprintf("($%02X),Y", address) },
 
 		// Indirect Y addressing - different than indirect X addressing.
-		// Next byte after op code points to is an offset in the zero page from where
+		// Next byte after op code points to an offset in the zero page from where
 		// we reads two bytes to compose base address. We add Y register to that address
 		// and this is where data is stored. We need to check if page is crossed after
 		// adding Y register.
 		CalculateAddress: func(pc uint16, x, y uint8, read ReadFunction) (uint16, bool) {
-			zeroLow := read(pc + 1)
+			arg := read(pc + 1)
 
-			low := read(uint16(zeroLow))
-			high := read(uint16(zeroLow + 1))
+			low := read(uint16(arg))
+			high := read(uint16(arg + 1))
 			high16 := uint16(high) << 8
 
 			var addr = (high16 | uint16(low)) + uint16(y)

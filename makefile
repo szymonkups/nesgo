@@ -6,10 +6,10 @@ MAIN_FILE=./main.go
 BINARY_NAME=nesgo
 
 test:
-	$(GOTEST) -v ./...
+	$(GOTEST) ./...
 
 coverage:
-	$(GOTEST) -v ./... -cover -coverprofile=coverage.out
+	$(GOTEST) ./... -cover -coverprofile=coverage.out
 
 coverage-html:
 	make coverage
