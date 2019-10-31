@@ -189,220 +189,135 @@ func TestRelativeAddressing(t *testing.T) {
 }
 
 func TestAbsoluteAddressing(t *testing.T) {
+	a := assert.New(t)
+
 	addr, _ := addressing.GetAddressingById(addressing.AbsoluteAddressing)
+	a.Equal("ABS", addr.Name, "Wrong absolute addressing name")
+	a.Equal(uint8(3), addr.Size, "Wrong absolute addressing size")
+	a.Equal("$00FA", addr.Format(0xFA), "Wrong absolute addressing formatting")
 
-	if addr.Name != "ABS" {
-		t.Errorf("Wrong absolute addressing name")
-	}
-
-	if addr.Size != 3 {
-		t.Errorf("Wrong absolute addressing size")
-	}
-
-	formatted := addr.Format(0xFA)
-	if formatted != "$00FA" {
-		t.Errorf("Wrong absolute addressing formatting: %s", formatted)
-	}
-
-	calculated, add := addr.CalculateAddress(0x44, 0, 0x10,
-		createMockReadFunction(t, "relative addressing", []uint8{0xFF, 0xCC}, []uint16{0x45, 0x46}))
-
-	if calculated != 0xCCFF {
-		t.Errorf("Absolute addressing should return correct value, got %04X", calculated)
-	}
-
-	if add {
-		t.Errorf("Absolute addressing should not add cycles")
-	}
+	pc := uint16(0x44)
+	mockRead := createMockReadFunction(t, "relative addressing", []uint8{0xFF, 0xCC}, []uint16{pc + 1, pc + 2})
+	calculated, add := addr.CalculateAddress(pc, 0, 0, mockRead)
+	a.Equal(uint16(0xCCFF), calculated, "Absolute addressing should return correct value")
+	a.False(add, "Absolute addressing should not add cycles")
 }
 
 func TestAbsoluteXAddressing(t *testing.T) {
+	a := assert.New(t)
+
 	addr, _ := addressing.GetAddressingById(addressing.AbsoluteXAddressing)
+	a.Equal("ABX", addr.Name, "Wrong absolute X addressing name")
+	a.Equal(uint8(3), addr.Size, "Wrong absolute X addressing size")
+	a.Equal("$00FA,X", addr.Format(0xFA), "Wrong absolute X addressing formatting")
 
-	if addr.Name != "ABX" {
-		t.Errorf("Wrong absolute X addressing name")
-	}
+	// No page crossed
+	pc := uint16(0x44)
+	x := uint8(0x10)
+	mockRead := createMockReadFunction(t, "relative addressing", []uint8{0xAA, 0xBB}, []uint16{pc + 1, pc + 2})
+	calculated, add := addr.CalculateAddress(pc, x, 0, mockRead)
+	a.Equal(uint16(0xBBAA)+uint16(x), calculated, "Absolute addressing X should return correct value")
+	a.False(add, "Absolute addressing X should not add cycles when not crossing pages")
 
-	if addr.Size != 3 {
-		t.Errorf("Wrong absolute X addressing size")
-	}
-
-	formatted := addr.Format(0xFA)
-	if formatted != "$00FA,X" {
-		t.Errorf("Wrong absolute X addressing formatting: %s", formatted)
-	}
-
-	calculated, add := addr.CalculateAddress(0x44, 0x10, 0,
-		createMockReadFunction(t, "relative addressing", []uint8{0xAA, 0xBB}, []uint16{0x45, 0x46}))
-
-	if calculated != 0xBBAA+0x10 {
-		t.Errorf("Absolute addressing X should return correct value, got %04X", calculated)
-	}
-
-	if add {
-		t.Errorf("Absolute addressing X should not add cycles when not crossing pages")
-	}
-
-	calculated, add = addr.CalculateAddress(0x44, 0x10, 0,
-		createMockReadFunction(t, "relative addressing", []uint8{0xFF, 0xAA}, []uint16{0x45, 0x46}))
-
-	if calculated != 0xAAFF+0x10 {
-		t.Errorf("Absolute addressing X should return correct value when crossing pages, got %04X", calculated)
-	}
-
-	if !add {
-		t.Errorf("Absolute addressing X should add cycles when crossing pages")
-	}
+	// Page crossed
+	pc = uint16(0x44)
+	x = uint8(0x10)
+	mockRead = createMockReadFunction(t, "relative addressing", []uint8{0xFF, 0xAA}, []uint16{pc + 1, pc + 2})
+	calculated, add = addr.CalculateAddress(pc, x, 0, mockRead)
+	a.Equal(uint16(0xAAFF)+uint16(x), calculated, "Absolute addressing X should return correct value when crossing pages")
+	a.True(add, "Absolute addressing X should add cycles when crossing pages")
 }
 
 func TestAbsoluteYAddressing(t *testing.T) {
+	a := assert.New(t)
+
 	addr, _ := addressing.GetAddressingById(addressing.AbsoluteYAddressing)
+	a.Equal("ABY", addr.Name, "Wrong absolute Y addressing name")
+	a.Equal(uint8(3), addr.Size, "Wrong absolute Y addressing size")
+	a.Equal("$00FA,Y", addr.Format(0xFA), "Wrong absolute Y addressing formatting")
 
-	if addr.Name != "ABY" {
-		t.Errorf("Wrong absolute Y addressing name")
-	}
+	// No page crossing
+	pc := uint16(0x44)
+	y := uint8(0x10)
+	mockRead := createMockReadFunction(t, "relative addressing", []uint8{0xAA, 0xBB}, []uint16{pc + 1, pc + 2})
+	calculated, add := addr.CalculateAddress(pc, 0, y, mockRead)
+	a.Equal(uint16(0xBBAA)+uint16(y), calculated, "Absolute addressing Y should return correct value")
+	a.False(add, "Absolute addressing Y should not add cycles when not crossing pages")
 
-	if addr.Size != 3 {
-		t.Errorf("Wrong absolute Y addressing size")
-	}
-
-	formatted := addr.Format(0xFA)
-	if formatted != "$00FA,Y" {
-		t.Errorf("Wrong absolute Y addressing formatting: %s", formatted)
-	}
-
-	calculated, add := addr.CalculateAddress(0x44, 0, 0x10,
-		createMockReadFunction(t, "relative addressing", []uint8{0xAA, 0xBB}, []uint16{0x45, 0x46}))
-
-	if calculated != 0xBBAA+0x10 {
-		t.Errorf("Absolute addressing Y should return correct value, got %04X", calculated)
-	}
-
-	if add {
-		t.Errorf("Absolute addressing Y should not add cycles when not crossing pages")
-	}
-
-	calculated, add = addr.CalculateAddress(0x44, 0, 0x10,
-		createMockReadFunction(t, "relative addressing", []uint8{0xFF, 0xAA}, []uint16{0x45, 0x46}))
-
-	if calculated != 0xAAFF+0x10 {
-		t.Errorf("Absolute addressing Y should return correct value when crossing pages, got %04X", calculated)
-	}
-
-	if !add {
-		t.Errorf("Absolute addressing Y should add cycles when crossing pages")
-	}
+	// Page crossing
+	pc = uint16(0x44)
+	y = uint8(0x10)
+	mockRead = createMockReadFunction(t, "relative addressing", []uint8{0xFF, 0xAA}, []uint16{pc + 1, pc + 2})
+	calculated, add = addr.CalculateAddress(pc, 0, y, mockRead)
+	a.Equal(uint16(0xAAFF)+uint16(y), calculated, "Absolute addressing Y should return correct value when crossing pages")
+	a.True(add, "Absolute addressing Y should add cycles when crossing pages")
 }
 
 func TestIndirectAddressing(t *testing.T) {
+	a := assert.New(t)
+
 	addr, _ := addressing.GetAddressingById(addressing.IndirectAddressing)
+	a.Equal("IND", addr.Name, "Wrong indirect addressing name")
+	a.Equal(uint8(3), addr.Size, "Wrong indirect addressing size")
+	a.Equal("($00FA)", addr.Format(0xFA), "Wrong indirect addressing formatting")
 
-	if addr.Name != "IND" {
-		t.Errorf("Wrong indirect addressing name")
-	}
+	// Normal operation
+	pc := uint16(0x44)
+	mockRead := createMockReadFunction(t, "indirect addressing", []uint8{0xAA, 0xBB, 0xFF, 0x21}, []uint16{pc + 1, pc + 2, 0xBBAA, 0xBBAB})
+	calculated, add := addr.CalculateAddress(pc, 0, 0, mockRead)
+	a.Equal(uint16(0x21FF), calculated, "Indirect addressing should return correct value")
+	a.False(add, "Indirect addressing should not add cycle")
 
-	if addr.Size != 3 {
-		t.Errorf("Wrong indirect addressing size")
-	}
-
-	formatted := addr.Format(0xFA)
-	if formatted != "($00FA)" {
-		t.Errorf("Wrong indirect addressing formatting: %s", formatted)
-	}
-
-	calculated, add := addr.CalculateAddress(0x44, 0, 0,
-		createMockReadFunction(t, "indirect addressing", []uint8{0xAA, 0xBB, 0xFF, 0x21}, []uint16{0x45, 0x46, 0xBBAA, 0xBBAB}))
-
-	if calculated != 0x21FF {
-		t.Errorf("Indirect addressing should return correct value, got $%04X", calculated)
-	}
-
-	if add {
-		t.Errorf("Indirect addresing should always return false")
-	}
-
-	// Check the bug with address wrapping on LSB when reading from xxFF
-	calculated, add = addr.CalculateAddress(0x44, 0, 0,
-		createMockReadFunction(t, "indirect addressing", []uint8{0xFF, 0xBB, 0xFF, 0x21}, []uint16{0x45, 0x46, 0xBBFF, 0xBB00}))
-
-	if calculated != 0x21FF {
-		t.Errorf("Indirect addressing should return correct value, got $%04X", calculated)
-	}
+	// Check the 6502 bug with address wrapping on LSB when reading from xxFF
+	pc = uint16(0x44)
+	mockRead = createMockReadFunction(t, "indirect addressing - wrap bug", []uint8{0xFF, 0xBB, 0xFF, 0x21}, []uint16{pc + 1, pc + 2, 0xBBFF, 0xBB00})
+	calculated, add = addr.CalculateAddress(pc, 0, 0, mockRead)
+	a.Equal(uint16(0x21FF), calculated, "Indirect addressing should wrap around LSB (6502 bug)")
+	a.False(add, "Indirect addressing should not add cycle when LSB bug appears")
 }
 
 func TestIndirectXAddressing(t *testing.T) {
+	a := assert.New(t)
+
 	addr, _ := addressing.GetAddressingById(addressing.IndirectXAddressing)
+	a.Equal("INX", addr.Name, "Wrong indirect X addressing name")
+	a.Equal(uint8(2), addr.Size, "Wrong indirect X addressing size")
+	a.Equal("($FA,X)", addr.Format(0xFA), "Wrong indirect X addressing formatting")
 
-	if addr.Name != "INX" {
-		t.Errorf("Wrong indirect X addressing name")
-	}
-
-	if addr.Size != 2 {
-		t.Errorf("Wrong indirect X addressing size")
-	}
-
-	formatted := addr.Format(0xFA)
-	if formatted != "($FA,X)" {
-		t.Errorf("Wrong indirect X addressing formatting: %s", formatted)
-	}
-
-	calculated, add := addr.CalculateAddress(0x44, 0x12, 0,
-		createMockReadFunction(t, "indirect X addressing", []uint8{0x11, 0xAA, 0xBB}, []uint16{0x45, 0x11 + 0x12, 0x11 + 0x13}))
-
-	if calculated != 0xBBAA {
-		t.Errorf("Indirect X addressing should return correct value, got $%04X", calculated)
-	}
-
-	if add {
-		t.Errorf("Indirect X addresing should always return false")
-	}
+	pc := uint16(0x44)
+	x := uint8(0x12)
+	d1 := uint8(0x11)
+	mockRead := createMockReadFunction(t, "indirect X addressing", []uint8{d1, 0xAA, 0xBB}, []uint16{pc + 1, uint16(d1 + x), uint16(d1 + x + 1)})
+	calculated, add := addr.CalculateAddress(pc, x, 0, mockRead)
+	a.Equal(uint16(0xBBAA), calculated, "Indirect X addressing should return correct value")
+	a.False(add, "Indirect X addressing should not add cycles")
 }
 
 func TestIndirectYAddressing(t *testing.T) {
+	a := assert.New(t)
+
 	addr, _ := addressing.GetAddressingById(addressing.IndirectYAddressing)
+	a.Equal("INY", addr.Name, "Wrong indirect Y addressing name")
+	a.Equal(uint8(2), addr.Size, "Wrong indirect Y addressing size")
+	a.Equal("($FA),Y", addr.Format(0xFA), "Wrong indirect Y addressing formatting")
 
-	if addr.Name != "INY" {
-		t.Errorf("Wrong indirect Y addressing name")
-	}
-
-	if addr.Size != 2 {
-		t.Errorf("Wrong indirect Y addressing size")
-	}
-
-	formatted := addr.Format(0xFA)
-	if formatted != "($FA),Y" {
-		t.Errorf("Wrong indirect Y addressing formatting: %s", formatted)
-	}
-
+	// Page not crossed
 	pc := uint16(0x44)
 	y := uint8(0x12)
 	d1 := uint8(0x11)
+	mockRead := createMockReadFunction(t, "indirect Y addressing", []uint8{d1, 0xAA, 0xBB}, []uint16{pc + 1, uint16(d1), uint16(d1 + 1)})
+	calculated, add := addr.CalculateAddress(pc, 0, y, mockRead)
+	a.Equal(0xBBAA+uint16(y), calculated, "Indirect Y addressing should return correct value")
+	a.False(add, "Indirect Y addressing should return false when page is not crossed")
 
-	calculated, add := addr.CalculateAddress(pc, 0, y,
-		createMockReadFunction(t, "indirect Y addressing", []uint8{d1, 0xAA, 0xBB}, []uint16{pc + 1, uint16(d1), uint16(d1 + 1)}))
-
-	if calculated != 0xBBAA+uint16(y) {
-		t.Errorf("Indirect Y addressing should return correct value, got $%04X", calculated)
-	}
-
-	if add {
-		t.Errorf("Indirect Y addresing should return false when page is not crossed")
-	}
-
+	// Page crossed
 	pc = uint16(0x44)
 	y = uint8(0x12)
 	d1 = uint8(0x11)
-
-	calculated, add = addr.CalculateAddress(pc, 0, y,
-		createMockReadFunction(t, "indirect Y addressing", []uint8{d1, 0xFF, 0xBB}, []uint16{pc + 1, uint16(d1), uint16(d1 + 1)}))
-
-	if calculated != 0xBBFF+uint16(y) {
-		t.Errorf("Indirect Y addressing should return correct value, got $%04X", calculated)
-	}
-
-	if !add {
-		t.Errorf("Indirect Y addresing should return true when page is crossed")
-	}
+	readMock := createMockReadFunction(t, "indirect Y addressing", []uint8{d1, 0xFF, 0xBB}, []uint16{pc + 1, uint16(d1), uint16(d1 + 1)})
+	calculated, add = addr.CalculateAddress(pc, 0, y, readMock)
+	a.Equal(0xBBFF+uint16(y), calculated, "Indirect Y addressing should return correct value when crossing pages")
+	a.True(add, "Indirect Y addressing should return true when page is crossed")
 }
 
 // Creates mock read function to be used with CalculateAddress. Name will be used in the error reports to indicate

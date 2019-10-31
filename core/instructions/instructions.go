@@ -1,6 +1,9 @@
-package core
+package instructions
 
-import "github.com/szymonkups/nesgo/core/addressing"
+import (
+	"github.com/szymonkups/nesgo/core"
+	"github.com/szymonkups/nesgo/core/addressing"
+)
 
 // Instruction set
 // ADC AND ASL BCC BCS BEQ BIT BMI BNE BPL BRK BVC BVS CLC
@@ -17,13 +20,13 @@ var instructions = []*instruction{
 // Instruction - describes instruction
 type instruction struct {
 	// Human readable name - for debugging
-	name string
+	Name string
 
 	// Op codes op code per addressing mode
-	opCodes opCodesMap
+	OpCodes opCodesMap
 
 	// Instruction handler
-	handler instructionHandler
+	Handler instructionHandler
 }
 
 type opCodesMap map[uint8]struct {
@@ -38,7 +41,7 @@ type opCodesMap map[uint8]struct {
 // We pass CPU instance, absolute address calculated by correct addressing mode,
 // actual op code (as same instruction can have different op codes depending on
 // addressing mode) and addressing mode itself.
-type instructionHandler func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool
+type instructionHandler func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool
 
 // *****************************************************************************
 // Instructions
@@ -46,8 +49,8 @@ type instructionHandler func(cpu *CPU, addr uint16, opCode uint8, addrMode int) 
 
 // ADC - Add with carry
 var adc = instruction{
-	name: "ADC",
-	opCodes: opCodesMap{
+	Name: "ADC",
+	OpCodes: opCodesMap{
 		0x69: {addressing.ImmediateAddressing, 2},
 		0x65: {addressing.ZeroPageAddressing, 3},
 		0x75: {addressing.ZeroPageXAddressing, 4},
@@ -57,21 +60,21 @@ var adc = instruction{
 		0x61: {addressing.IndirectXAddressing, 6},
 		0x71: {addressing.IndirectYAddressing, 5},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		acc := cpu.a
 		data := cpu.bus.Read(addr)
 		carry := uint8(0)
 
-		if cpu.getFlag(cFlag) {
+		if cpu.getFlag(core.cFlag) {
 			carry = 1
 		}
 
 		cpu.a = acc + data + carry
 
-		cpu.setFlag(cFlag, int(acc)+int(data)+int(carry) > 0xFF)
-		cpu.setFlag(vFLag, (acc^data)&0x80 == 0 && (acc^cpu.a)&0x80 != 0)
-		cpu.setFlag(zFLag, cpu.a == 0)
-		cpu.setFlag(nFLag, cpu.a&0x80 != 0)
+		cpu.setFlag(core.cFlag, int(acc)+int(data)+int(carry) > 0xFF)
+		cpu.setFlag(core.vFLag, (acc^data)&0x80 == 0 && (acc^cpu.a)&0x80 != 0)
+		cpu.setFlag(core.zFLag, cpu.a == 0)
+		cpu.setFlag(core.nFLag, cpu.a&0x80 != 0)
 
 		return true
 	},
@@ -79,8 +82,8 @@ var adc = instruction{
 
 // SBC - Subtract with carry
 var sbc = instruction{
-	name: "SBC",
-	opCodes: opCodesMap{
+	Name: "SBC",
+	OpCodes: opCodesMap{
 		0xE9: {addressing.ImmediateAddressing, 2},
 		0xE5: {addressing.ZeroPageAddressing, 3},
 		0xF5: {addressing.ZeroPageXAddressing, 4},
@@ -90,41 +93,41 @@ var sbc = instruction{
 		0xE1: {addressing.IndirectXAddressing, 6},
 		0xF1: {addressing.IndirectYAddressing, 5},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		acc := cpu.a
 		data := cpu.bus.Read(addr)
 		carry := uint8(0)
 
-		if cpu.getFlag(cFlag) {
+		if cpu.getFlag(core.cFlag) {
 			carry = 1
 		}
 
 		cpu.a = acc - data - (1 - carry)
 
-		cpu.setFlag(cFlag, int(acc)-int(data)-int(1-carry) >= 0)
-		cpu.setFlag(vFLag, (acc^data)&0x80 != 0 && (acc^cpu.a)&0x80 != 0)
-		cpu.setFlag(zFLag, cpu.a == 0)
-		cpu.setFlag(nFLag, cpu.a&0x80 != 0)
+		cpu.setFlag(core.cFlag, int(acc)-int(data)-int(1-carry) >= 0)
+		cpu.setFlag(core.vFLag, (acc^data)&0x80 != 0 && (acc^cpu.a)&0x80 != 0)
+		cpu.setFlag(core.zFLag, cpu.a == 0)
+		cpu.setFlag(core.nFLag, cpu.a&0x80 != 0)
 		return true
 	},
 }
 
 // ASL - Arithmetic shift left
 var asl = instruction{
-	name: "ASL",
-	opCodes: opCodesMap{
+	Name: "ASL",
+	OpCodes: opCodesMap{
 		0x0A: {addressing.AccumulatorAddressing, 2},
 		0x06: {addressing.ZeroPageAddressing, 5},
 		0x16: {addressing.ZeroPageXAddressing, 6},
 		0x0E: {addressing.AbsoluteAddressing, 6},
 		0x1E: {addressing.AbsoluteXAddressing, 7},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		data := cpu.bus.Read(addr)
 		var res16 = uint16(data) << 1
-		cpu.setFlag(cFlag, (res16&0xFF00) > 0)
-		cpu.setFlag(zFLag, (res16&0x00FF) == 0x00)
-		cpu.setFlag(nFLag, res16&0x80 != 0)
+		cpu.setFlag(core.cFlag, (res16&0xFF00) > 0)
+		cpu.setFlag(core.zFLag, (res16&0x00FF) == 0x00)
+		cpu.setFlag(core.nFLag, res16&0x80 != 0)
 
 		res := uint8(res16 & 0x00FF)
 
@@ -140,8 +143,8 @@ var asl = instruction{
 
 // AND - Bitwise logic AND
 var and = instruction{
-	name: "AND",
-	opCodes: opCodesMap{
+	Name: "AND",
+	OpCodes: opCodesMap{
 		0x29: {addressing.ImmediateAddressing, 2},
 		0x25: {addressing.ZeroPageAddressing, 3},
 		0x35: {addressing.ZeroPageXAddressing, 4},
@@ -151,12 +154,12 @@ var and = instruction{
 		0x21: {addressing.IndirectXAddressing, 6},
 		0x31: {addressing.IndirectYAddressing, 5},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		data := cpu.bus.Read(addr)
 		cpu.a = cpu.a & data
 
-		cpu.setFlag(zFLag, cpu.a == 0x00)
-		cpu.setFlag(nFLag, cpu.a&0b10000000 != 0)
+		cpu.setFlag(core.zFLag, cpu.a == 0x00)
+		cpu.setFlag(core.nFLag, cpu.a&0b10000000 != 0)
 
 		return true
 	},
@@ -164,12 +167,12 @@ var and = instruction{
 
 // BCC - Branch if carry is clear
 var bcc = instruction{
-	name: "BCC",
-	opCodes: opCodesMap{
+	Name: "BCC",
+	OpCodes: opCodesMap{
 		0x90: {addressing.RelativeAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		if !cpu.getFlag(cFlag) {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		if !cpu.getFlag(core.cFlag) {
 			branchHandler(cpu, addr)
 		}
 
@@ -179,12 +182,12 @@ var bcc = instruction{
 
 // BCS - Branch if carry is set
 var bcs = instruction{
-	name: "BCS",
-	opCodes: opCodesMap{
+	Name: "BCS",
+	OpCodes: opCodesMap{
 		0xB0: {addressing.RelativeAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		if cpu.getFlag(cFlag) {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		if cpu.getFlag(core.cFlag) {
 			branchHandler(cpu, addr)
 		}
 
@@ -194,12 +197,12 @@ var bcs = instruction{
 
 // BEQ - Branch if equal - zero flag is set
 var beq = instruction{
-	name: "BEQ",
-	opCodes: opCodesMap{
+	Name: "BEQ",
+	OpCodes: opCodesMap{
 		0xF0: {addressing.RelativeAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		if cpu.getFlag(zFLag) {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		if cpu.getFlag(core.zFLag) {
 			branchHandler(cpu, addr)
 		}
 
@@ -209,12 +212,12 @@ var beq = instruction{
 
 // BMI - Branch if minus - negative flag is set
 var bmi = instruction{
-	name: "BMI",
-	opCodes: opCodesMap{
+	Name: "BMI",
+	OpCodes: opCodesMap{
 		0x30: {addressing.RelativeAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		if cpu.getFlag(nFLag) {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		if cpu.getFlag(core.nFLag) {
 			branchHandler(cpu, addr)
 		}
 
@@ -224,12 +227,12 @@ var bmi = instruction{
 
 // BNE - Branch if no equal - zero flag is not set
 var bne = instruction{
-	name: "BNE",
-	opCodes: opCodesMap{
+	Name: "BNE",
+	OpCodes: opCodesMap{
 		0xD0: {addressing.RelativeAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		if !cpu.getFlag(zFLag) {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		if !cpu.getFlag(core.zFLag) {
 			branchHandler(cpu, addr)
 		}
 
@@ -239,12 +242,12 @@ var bne = instruction{
 
 // BPL - Branch if positive - negative flag is not set
 var bpl = instruction{
-	name: "BPL",
-	opCodes: opCodesMap{
+	Name: "BPL",
+	OpCodes: opCodesMap{
 		0x10: {addressing.RelativeAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		if !cpu.getFlag(nFLag) {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		if !cpu.getFlag(core.nFLag) {
 			branchHandler(cpu, addr)
 		}
 
@@ -254,12 +257,12 @@ var bpl = instruction{
 
 // BVC - Branch if overflow clear
 var bvc = instruction{
-	name: "BVC",
-	opCodes: opCodesMap{
+	Name: "BVC",
+	OpCodes: opCodesMap{
 		0x50: {addressing.RelativeAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		if !cpu.getFlag(vFLag) {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		if !cpu.getFlag(core.vFLag) {
 			branchHandler(cpu, addr)
 		}
 
@@ -269,12 +272,12 @@ var bvc = instruction{
 
 // BVS - Branch if overflow is set
 var bvs = instruction{
-	name: "BVS",
-	opCodes: opCodesMap{
+	Name: "BVS",
+	OpCodes: opCodesMap{
 		0x70: {addressing.RelativeAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		if cpu.getFlag(vFLag) {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		if cpu.getFlag(core.vFLag) {
 			branchHandler(cpu, addr)
 		}
 
@@ -282,7 +285,7 @@ var bvs = instruction{
 	},
 }
 
-func branchHandler(cpu *CPU, addr uint16) {
+func branchHandler(cpu *core.CPU, addr uint16) {
 	cpu.cyclesLeft++
 
 	// Page might be crossed - add one cycle if that happens
@@ -295,18 +298,18 @@ func branchHandler(cpu *CPU, addr uint16) {
 
 // BIT - bit test
 var bit = instruction{
-	name: "BIT",
-	opCodes: opCodesMap{
+	Name: "BIT",
+	OpCodes: opCodesMap{
 		0x24: {addressing.ZeroPageAddressing, 3},
 		0x2C: {addressing.AbsoluteAddressing, 4},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		data := cpu.bus.Read(addr)
 		tmp := data & cpu.a
 
-		cpu.setFlag(zFLag, tmp == 0x00)
-		cpu.setFlag(nFLag, data&0b010000000 != 0)
-		cpu.setFlag(vFLag, data&0b001000000 != 0)
+		cpu.setFlag(core.zFLag, tmp == 0x00)
+		cpu.setFlag(core.nFLag, data&0b010000000 != 0)
+		cpu.setFlag(core.vFLag, data&0b001000000 != 0)
 
 		return false
 	},
@@ -314,17 +317,17 @@ var bit = instruction{
 
 // BRK - Force interrupt
 var brk = instruction{
-	name: "BRK",
-	opCodes: opCodesMap{
+	Name: "BRK",
+	OpCodes: opCodesMap{
 		0x00: {addressing.ImpliedAddressing, 7},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		// Padding byte
 		// http://nesdev.com/the%20%27B%27%20flag%20&%20BRK%20instruction.txt
 		cpu.pc++
 
 		// Set interrupt flag
-		cpu.setFlag(iFLag, true)
+		cpu.setFlag(core.iFLag, true)
 
 		// Push Program Counter to stack
 		cpu.pushToStack16(cpu.pc)
@@ -342,15 +345,15 @@ var brk = instruction{
 
 // INX - Increment X register by one
 var inx = instruction{
-	name: "INX",
-	opCodes: opCodesMap{
+	Name: "INX",
+	OpCodes: opCodesMap{
 		0xE8: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.x++
 
-		cpu.setFlag(zFLag, cpu.x == 0x00)
-		cpu.setFlag(nFLag, cpu.x&0b10000000 != 0)
+		cpu.setFlag(core.zFLag, cpu.x == 0x00)
+		cpu.setFlag(core.nFLag, cpu.x&0b10000000 != 0)
 
 		return false
 	},
@@ -358,15 +361,15 @@ var inx = instruction{
 
 // INY - Increment Y register by one
 var iny = instruction{
-	name: "INY",
-	opCodes: opCodesMap{
+	Name: "INY",
+	OpCodes: opCodesMap{
 		0xC8: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.y++
 
-		cpu.setFlag(zFLag, cpu.y == 0x00)
-		cpu.setFlag(nFLag, cpu.y&0b10000000 != 0)
+		cpu.setFlag(core.zFLag, cpu.y == 0x00)
+		cpu.setFlag(core.nFLag, cpu.y&0b10000000 != 0)
 
 		return false
 	},
@@ -374,20 +377,20 @@ var iny = instruction{
 
 // INC - Increment memory location
 var inc = instruction{
-	name: "INC",
-	opCodes: opCodesMap{
+	Name: "INC",
+	OpCodes: opCodesMap{
 		0xE6: {addressing.ZeroPageAddressing, 5},
 		0xF6: {addressing.ZeroPageXAddressing, 6},
 		0xEE: {addressing.AbsoluteAddressing, 6},
 		0xFE: {addressing.AbsoluteXAddressing, 7},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		data := cpu.bus.Read(addr)
 		data++
 		cpu.bus.Write(addr, data)
 
-		cpu.setFlag(zFLag, data == 0x00)
-		cpu.setFlag(nFLag, data&0b10000000 != 0)
+		cpu.setFlag(core.zFLag, data == 0x00)
+		cpu.setFlag(core.nFLag, data&0b10000000 != 0)
 
 		return false
 	},
@@ -395,12 +398,12 @@ var inc = instruction{
 
 // CLC - Clear carry flag
 var clc = instruction{
-	name: "CLC",
-	opCodes: opCodesMap{
+	Name: "CLC",
+	OpCodes: opCodesMap{
 		0x18: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.setFlag(cFlag, false)
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.setFlag(core.cFlag, false)
 
 		return false
 	},
@@ -408,12 +411,12 @@ var clc = instruction{
 
 // CLD - Clear decimal flag
 var cld = instruction{
-	name: "CLD",
-	opCodes: opCodesMap{
+	Name: "CLD",
+	OpCodes: opCodesMap{
 		0xD8: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.setFlag(dFLag, false)
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.setFlag(core.dFLag, false)
 
 		return false
 	},
@@ -421,12 +424,12 @@ var cld = instruction{
 
 // CLI - Clear interrupt flag (disable interrupts)
 var cli = instruction{
-	name: "CLI",
-	opCodes: opCodesMap{
+	Name: "CLI",
+	OpCodes: opCodesMap{
 		0x58: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.setFlag(iFLag, false)
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.setFlag(core.iFLag, false)
 
 		return false
 	},
@@ -434,12 +437,12 @@ var cli = instruction{
 
 // CLV - Clear overflow flag
 var clv = instruction{
-	name: "CLV",
-	opCodes: opCodesMap{
+	Name: "CLV",
+	OpCodes: opCodesMap{
 		0xB8: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.setFlag(vFLag, false)
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.setFlag(core.vFLag, false)
 
 		return false
 	},
@@ -447,8 +450,8 @@ var clv = instruction{
 
 // CMP - Compare accumulator
 var cmp = instruction{
-	name: "CMP",
-	opCodes: opCodesMap{
+	Name: "CMP",
+	OpCodes: opCodesMap{
 		0xC9: {addressing.ImmediateAddressing, 2},
 		0xC5: {addressing.ZeroPageAddressing, 3},
 		0xD5: {addressing.ZeroPageXAddressing, 4},
@@ -458,7 +461,7 @@ var cmp = instruction{
 		0xC1: {addressing.IndirectXAddressing, 6},
 		0xD1: {addressing.IndirectYAddressing, 5},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		compareHandler(cpu, cpu.a, addr)
 
 		return true
@@ -467,13 +470,13 @@ var cmp = instruction{
 
 // CPX - Compare X register
 var cpx = instruction{
-	name: "CPX",
-	opCodes: opCodesMap{
+	Name: "CPX",
+	OpCodes: opCodesMap{
 		0xE0: {addressing.ImmediateAddressing, 2},
 		0xE4: {addressing.ZeroPageAddressing, 3},
 		0xEC: {addressing.AbsoluteAddressing, 4},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		compareHandler(cpu, cpu.x, addr)
 
 		return false
@@ -482,44 +485,44 @@ var cpx = instruction{
 
 // CPY - Compare Y register
 var cpy = instruction{
-	name: "CPY",
-	opCodes: opCodesMap{
+	Name: "CPY",
+	OpCodes: opCodesMap{
 		0xC0: {addressing.ImmediateAddressing, 2},
 		0xC4: {addressing.ZeroPageAddressing, 3},
 		0xCC: {addressing.AbsoluteAddressing, 4},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		compareHandler(cpu, cpu.y, addr)
 
 		return false
 	},
 }
 
-func compareHandler(cpu *CPU, a byte, addr uint16) {
+func compareHandler(cpu *core.CPU, a byte, addr uint16) {
 	data := cpu.bus.Read(addr)
 	diff := a - data
 
-	cpu.setFlag(cFlag, a >= data)
-	cpu.setFlag(zFLag, diff == 0)
-	cpu.setFlag(nFLag, diff&0x80 != 0)
+	cpu.setFlag(core.cFlag, a >= data)
+	cpu.setFlag(core.zFLag, diff == 0)
+	cpu.setFlag(core.nFLag, diff&0x80 != 0)
 }
 
 // DEC - decrement memory
 var dec = instruction{
-	name: "DEC",
-	opCodes: opCodesMap{
+	Name: "DEC",
+	OpCodes: opCodesMap{
 		0xC6: {addressing.ZeroPageAddressing, 5},
 		0xD6: {addressing.ZeroPageXAddressing, 6},
 		0xCE: {addressing.AbsoluteAddressing, 6},
 		0xDE: {addressing.AbsoluteXAddressing, 7},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		data := cpu.bus.Read(addr)
 		data--
 		cpu.bus.Write(addr, data)
 
-		cpu.setFlag(zFLag, data == 0)
-		cpu.setFlag(nFLag, data&0x80 != 0)
+		cpu.setFlag(core.zFLag, data == 0)
+		cpu.setFlag(core.nFLag, data&0x80 != 0)
 
 		return false
 	},
@@ -527,15 +530,15 @@ var dec = instruction{
 
 // DEX - decrement X register
 var dex = instruction{
-	name: "DEX",
-	opCodes: opCodesMap{
+	Name: "DEX",
+	OpCodes: opCodesMap{
 		0xCA: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.x--
 
-		cpu.setFlag(zFLag, cpu.x == 0)
-		cpu.setFlag(nFLag, cpu.x&0x80 != 0)
+		cpu.setFlag(core.zFLag, cpu.x == 0)
+		cpu.setFlag(core.nFLag, cpu.x&0x80 != 0)
 
 		return false
 	},
@@ -543,15 +546,15 @@ var dex = instruction{
 
 // DEY - decrement Y register
 var dey = instruction{
-	name: "DEY",
-	opCodes: opCodesMap{
+	Name: "DEY",
+	OpCodes: opCodesMap{
 		0x88: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.y--
 
-		cpu.setFlag(zFLag, cpu.y == 0)
-		cpu.setFlag(nFLag, cpu.y&0x80 != 0)
+		cpu.setFlag(core.zFLag, cpu.y == 0)
+		cpu.setFlag(core.nFLag, cpu.y&0x80 != 0)
 
 		return false
 	},
@@ -559,8 +562,8 @@ var dey = instruction{
 
 // EOR - Exclusive OR
 var eor = instruction{
-	name: "EOR",
-	opCodes: opCodesMap{
+	Name: "EOR",
+	OpCodes: opCodesMap{
 		0x49: {addressing.ImmediateAddressing, 2},
 		0x45: {addressing.ZeroPageAddressing, 3},
 		0x55: {addressing.ZeroPageXAddressing, 4},
@@ -570,12 +573,12 @@ var eor = instruction{
 		0x41: {addressing.IndirectXAddressing, 6},
 		0x51: {addressing.IndirectYAddressing, 5},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		data := cpu.bus.Read(addr)
 		cpu.a = cpu.a ^ data
 
-		cpu.setFlag(zFLag, cpu.a == 0x00)
-		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.a == 0x00)
+		cpu.setFlag(core.nFLag, cpu.a&0x80 != 0x00)
 
 		return true
 	},
@@ -583,11 +586,11 @@ var eor = instruction{
 
 // PHA - Push accumulator to stack
 var pha = instruction{
-	name: "PHA",
-	opCodes: opCodesMap{
+	Name: "PHA",
+	OpCodes: opCodesMap{
 		0x48: {addressing.ImpliedAddressing, 3},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.pushToStack(cpu.a)
 		return false
 	},
@@ -595,11 +598,11 @@ var pha = instruction{
 
 // PHP - Push processor status to stack
 var php = instruction{
-	name: "PHP",
-	opCodes: opCodesMap{
+	Name: "PHP",
+	OpCodes: opCodesMap{
 		0x08: {addressing.ImpliedAddressing, 3},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		// Push processor status flags to stack
 		// https://wiki.nesdev.com/w/index.php/Status_flags - set 4 and 5 bit before pushing
 		cpu.pushToStack(cpu.p | 0b00110000)
@@ -609,14 +612,14 @@ var php = instruction{
 
 // PLA = Pull accumulator from stack
 var pla = instruction{
-	name: "PLA",
-	opCodes: opCodesMap{
+	Name: "PLA",
+	OpCodes: opCodesMap{
 		0x68: {addressing.ImpliedAddressing, 4},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.a = cpu.pullFromStack()
-		cpu.setFlag(zFLag, cpu.a == 0x00)
-		cpu.setFlag(nFLag, cpu.a&0x80 != 0)
+		cpu.setFlag(core.zFLag, cpu.a == 0x00)
+		cpu.setFlag(core.nFLag, cpu.a&0x80 != 0)
 
 		return false
 	},
@@ -624,11 +627,11 @@ var pla = instruction{
 
 // PLP = Pull processor status from stack
 var plp = instruction{
-	name: "PLP",
-	opCodes: opCodesMap{
+	Name: "PLP",
+	OpCodes: opCodesMap{
 		0x28: {addressing.ImpliedAddressing, 4},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		// https://wiki.nesdev.com/w/index.php/Status_flags - ignore 4 and 5 bit - make sure 5 is set in p register
 		cpu.p = cpu.pullFromStack()&0b11001111 | 0b00100000
 
@@ -644,12 +647,12 @@ var jmp = instruction{
 	// expected but takes the MSB from $xx00. This is fixed in some later chips like the 65SC02 so for compatibility
 	// always ensure the indirect vector is not at the end of the page.
 
-	name: "JMP",
-	opCodes: opCodesMap{
+	Name: "JMP",
+	OpCodes: opCodesMap{
 		0x4C: {addressing.AbsoluteAddressing, 3},
 		0x6C: {addressing.IndirectAddressing, 5},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.pc = addr
 		return false
 	},
@@ -657,11 +660,11 @@ var jmp = instruction{
 
 // JSR - Jump to subroutine
 var jsr = instruction{
-	name: "JSR",
-	opCodes: opCodesMap{
+	Name: "JSR",
+	OpCodes: opCodesMap{
 		0x20: {addressing.AbsoluteAddressing, 6},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.pc--
 		cpu.pushToStack16(cpu.pc)
 		cpu.pc = addr
@@ -672,8 +675,8 @@ var jsr = instruction{
 
 // LDA - Load accumulator
 var lda = instruction{
-	name: "LDA",
-	opCodes: opCodesMap{
+	Name: "LDA",
+	OpCodes: opCodesMap{
 		0xA9: {addressing.ImmediateAddressing, 2},
 		0xA5: {addressing.ZeroPageAddressing, 3},
 		0xB5: {addressing.ZeroPageXAddressing, 4},
@@ -683,61 +686,61 @@ var lda = instruction{
 		0xA1: {addressing.IndirectXAddressing, 6},
 		0xB1: {addressing.IndirectYAddressing, 5},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.a = cpu.bus.Read(addr)
-		cpu.setFlag(zFLag, cpu.a == 0x00)
-		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.a == 0x00)
+		cpu.setFlag(core.nFLag, cpu.a&0x80 != 0x00)
 		return true
 	},
 }
 
 // LDX - Load X register
 var ldx = instruction{
-	name: "LDX",
-	opCodes: opCodesMap{
+	Name: "LDX",
+	OpCodes: opCodesMap{
 		0xA2: {addressing.ImmediateAddressing, 2},
 		0xA6: {addressing.ZeroPageAddressing, 3},
 		0xB6: {addressing.ZeroPageYAddressing, 4},
 		0xAE: {addressing.AbsoluteAddressing, 4},
 		0xBE: {addressing.AbsoluteYAddressing, 4},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.x = cpu.bus.Read(addr)
-		cpu.setFlag(zFLag, cpu.x == 0x00)
-		cpu.setFlag(nFLag, cpu.x&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.x == 0x00)
+		cpu.setFlag(core.nFLag, cpu.x&0x80 != 0x00)
 		return true
 	},
 }
 
 // LDY - Load Y register
 var ldy = instruction{
-	name: "LDY",
-	opCodes: opCodesMap{
+	Name: "LDY",
+	OpCodes: opCodesMap{
 		0xA0: {addressing.ImmediateAddressing, 2},
 		0xA4: {addressing.ZeroPageAddressing, 3},
 		0xB4: {addressing.ZeroPageXAddressing, 4},
 		0xAC: {addressing.AbsoluteAddressing, 4},
 		0xBC: {addressing.AbsoluteXAddressing, 4},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.y = cpu.bus.Read(addr)
-		cpu.setFlag(zFLag, cpu.y == 0x00)
-		cpu.setFlag(nFLag, cpu.y&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.y == 0x00)
+		cpu.setFlag(core.nFLag, cpu.y&0x80 != 0x00)
 		return true
 	},
 }
 
 // LSR - Logical shift right
 var lsr = instruction{
-	name: "LSR",
-	opCodes: opCodesMap{
+	Name: "LSR",
+	OpCodes: opCodesMap{
 		0x4A: {addressing.AccumulatorAddressing, 2},
 		0x46: {addressing.ZeroPageAddressing, 5},
 		0x56: {addressing.ZeroPageXAddressing, 6},
 		0x4E: {addressing.AbsoluteAddressing, 6},
 		0x5E: {addressing.AbsoluteXAddressing, 7},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		var data uint8
 
 		// Get correct data
@@ -747,10 +750,10 @@ var lsr = instruction{
 			data = cpu.bus.Read(addr)
 		}
 
-		cpu.setFlag(cFlag, data&0x01 != 0x00)
+		cpu.setFlag(core.cFlag, data&0x01 != 0x00)
 		data = data >> 1
-		cpu.setFlag(zFLag, data == 0x00)
-		cpu.setFlag(nFLag, data&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, data == 0x00)
+		cpu.setFlag(core.nFLag, data&0x80 != 0x00)
 
 		// Save result to correct place
 		if addrMode == addressing.AccumulatorAddressing {
@@ -766,19 +769,19 @@ var lsr = instruction{
 // NOP - No operation
 // TODO: there is a lot of unofficial op codes that does NOP, add them
 var nop = instruction{
-	name: "NOP",
-	opCodes: opCodesMap{
+	Name: "NOP",
+	OpCodes: opCodesMap{
 		0xEA: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		return false
 	},
 }
 
 // ORA - Logical inclusive OR
 var ora = instruction{
-	name: "ORA",
-	opCodes: opCodesMap{
+	Name: "ORA",
+	OpCodes: opCodesMap{
 		0x09: {addressing.ImmediateAddressing, 2},
 		0x05: {addressing.ZeroPageAddressing, 3},
 		0x15: {addressing.ZeroPageXAddressing, 4},
@@ -788,10 +791,10 @@ var ora = instruction{
 		0x01: {addressing.IndirectXAddressing, 6},
 		0x11: {addressing.IndirectYAddressing, 5},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.a |= cpu.bus.Read(addr)
-		cpu.setFlag(zFLag, cpu.a == 0x00)
-		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.a == 0x00)
+		cpu.setFlag(core.nFLag, cpu.a&0x80 != 0x00)
 
 		return true
 	},
@@ -799,15 +802,15 @@ var ora = instruction{
 
 // ROL - Rotate left
 var rol = instruction{
-	name: "ROL",
-	opCodes: opCodesMap{
+	Name: "ROL",
+	OpCodes: opCodesMap{
 		0x2A: {addressing.AccumulatorAddressing, 2},
 		0x26: {addressing.ZeroPageAddressing, 5},
 		0x36: {addressing.ZeroPageXAddressing, 6},
 		0x2E: {addressing.AbsoluteAddressing, 6},
 		0x3E: {addressing.AbsoluteXAddressing, 7},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		var data uint8
 
 		if addrMode == addressing.AccumulatorAddressing {
@@ -816,16 +819,16 @@ var rol = instruction{
 			data = cpu.bus.Read(addr)
 		}
 
-		tmpC := cpu.getFlag(cFlag)
-		cpu.setFlag(cFlag, data&0b10000000 != 0)
+		tmpC := cpu.getFlag(core.cFlag)
+		cpu.setFlag(core.cFlag, data&0b10000000 != 0)
 		data = data << 1
 
 		if tmpC {
 			data |= 0b00000001
 		}
 
-		cpu.setFlag(zFLag, data == 0x00)
-		cpu.setFlag(nFLag, data&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, data == 0x00)
+		cpu.setFlag(core.nFLag, data&0x80 != 0x00)
 
 		if addrMode == addressing.AccumulatorAddressing {
 			cpu.a = data
@@ -839,15 +842,15 @@ var rol = instruction{
 
 // ROR - Rotate right
 var ror = instruction{
-	name: "ROR",
-	opCodes: opCodesMap{
+	Name: "ROR",
+	OpCodes: opCodesMap{
 		0x6A: {addressing.AccumulatorAddressing, 2},
 		0x66: {addressing.ZeroPageAddressing, 5},
 		0x76: {addressing.ZeroPageXAddressing, 6},
 		0x6E: {addressing.AbsoluteAddressing, 6},
 		0x7E: {addressing.AbsoluteXAddressing, 7},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		var data uint8
 
 		if addrMode == addressing.AccumulatorAddressing {
@@ -856,16 +859,16 @@ var ror = instruction{
 			data = cpu.bus.Read(addr)
 		}
 
-		tmpC := cpu.getFlag(cFlag)
-		cpu.setFlag(cFlag, data&0b00000001 != 0)
+		tmpC := cpu.getFlag(core.cFlag)
+		cpu.setFlag(core.cFlag, data&0b00000001 != 0)
 		data = data >> 1
 
 		if tmpC {
 			data |= 0b10000000
 		}
 
-		cpu.setFlag(zFLag, data == 0x00)
-		cpu.setFlag(nFLag, data&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, data == 0x00)
+		cpu.setFlag(core.nFLag, data&0x80 != 0x00)
 
 		if addrMode == addressing.AccumulatorAddressing {
 			cpu.a = data
@@ -879,11 +882,11 @@ var ror = instruction{
 
 // RTI - Return from interrupt
 var rti = instruction{
-	name: "RTI",
-	opCodes: opCodesMap{
+	Name: "RTI",
+	OpCodes: opCodesMap{
 		0x40: {addressing.ImpliedAddressing, 6},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		// https://wiki.nesdev.com/w/index.php/Status_flags - ignore 4 and 5 bit - make sure 5 is set in p register
 		cpu.p = cpu.pullFromStack()&0b11001111 | 0b00100000
 		cpu.pc = cpu.pullFromStack16()
@@ -894,11 +897,11 @@ var rti = instruction{
 
 // RTS - Return from subroutine
 var rts = instruction{
-	name: "RTS",
-	opCodes: opCodesMap{
+	Name: "RTS",
+	OpCodes: opCodesMap{
 		0x60: {addressing.ImpliedAddressing, 6},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.pc = cpu.pullFromStack16() + 1
 
 		return false
@@ -907,12 +910,12 @@ var rts = instruction{
 
 // SEC - Set carry flag
 var sec = instruction{
-	name: "SEC",
-	opCodes: opCodesMap{
+	Name: "SEC",
+	OpCodes: opCodesMap{
 		0x38: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.setFlag(cFlag, true)
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.setFlag(core.cFlag, true)
 
 		return false
 	},
@@ -920,12 +923,12 @@ var sec = instruction{
 
 // SED - Set decimal flag
 var sed = instruction{
-	name: "SED",
-	opCodes: opCodesMap{
+	Name: "SED",
+	OpCodes: opCodesMap{
 		0xF8: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.setFlag(dFLag, true)
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.setFlag(core.dFLag, true)
 
 		return false
 	},
@@ -933,12 +936,12 @@ var sed = instruction{
 
 // SEI - Set interrupt disable flag
 var sei = instruction{
-	name: "SEI",
-	opCodes: opCodesMap{
+	Name: "SEI",
+	OpCodes: opCodesMap{
 		0x78: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.setFlag(iFLag, true)
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
+		cpu.setFlag(core.iFLag, true)
 
 		return false
 	},
@@ -946,8 +949,8 @@ var sei = instruction{
 
 // STA - Store accumulator
 var sta = instruction{
-	name: "STA",
-	opCodes: opCodesMap{
+	Name: "STA",
+	OpCodes: opCodesMap{
 		0x85: {addressing.ZeroPageAddressing, 3},
 		0x95: {addressing.ZeroPageXAddressing, 4},
 		0x8D: {addressing.AbsoluteAddressing, 4},
@@ -956,7 +959,7 @@ var sta = instruction{
 		0x81: {addressing.IndirectXAddressing, 6},
 		0x91: {addressing.IndirectYAddressing, 6},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.bus.Write(addr, cpu.a)
 
 		return false
@@ -965,13 +968,13 @@ var sta = instruction{
 
 // STX - Store X register
 var stx = instruction{
-	name: "STX",
-	opCodes: opCodesMap{
+	Name: "STX",
+	OpCodes: opCodesMap{
 		0x86: {addressing.ZeroPageAddressing, 3},
 		0x96: {addressing.ZeroPageYAddressing, 4},
 		0x8E: {addressing.AbsoluteAddressing, 4},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.bus.Write(addr, cpu.x)
 
 		return false
@@ -980,13 +983,13 @@ var stx = instruction{
 
 // STY - Store Y register
 var sty = instruction{
-	name: "STY",
-	opCodes: opCodesMap{
+	Name: "STY",
+	OpCodes: opCodesMap{
 		0x84: {addressing.ZeroPageAddressing, 3},
 		0x94: {addressing.ZeroPageXAddressing, 4},
 		0x8C: {addressing.AbsoluteAddressing, 4},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.bus.Write(addr, cpu.y)
 
 		return false
@@ -995,14 +998,14 @@ var sty = instruction{
 
 // TAX - Transfer accumulator to X
 var tax = instruction{
-	name: "TAX",
-	opCodes: opCodesMap{
+	Name: "TAX",
+	OpCodes: opCodesMap{
 		0xAA: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.x = cpu.a
-		cpu.setFlag(zFLag, cpu.x == 0x00)
-		cpu.setFlag(nFLag, cpu.x&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.x == 0x00)
+		cpu.setFlag(core.nFLag, cpu.x&0x80 != 0x00)
 
 		return false
 	},
@@ -1010,14 +1013,14 @@ var tax = instruction{
 
 // TAY - Transfer accumulator to Y
 var tay = instruction{
-	name: "TAY",
-	opCodes: opCodesMap{
+	Name: "TAY",
+	OpCodes: opCodesMap{
 		0xA8: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.y = cpu.a
-		cpu.setFlag(zFLag, cpu.y == 0x00)
-		cpu.setFlag(nFLag, cpu.y&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.y == 0x00)
+		cpu.setFlag(core.nFLag, cpu.y&0x80 != 0x00)
 
 		return false
 	},
@@ -1025,14 +1028,14 @@ var tay = instruction{
 
 // TSX - Transfer stack pointer to X
 var tsx = instruction{
-	name: "TSX",
-	opCodes: opCodesMap{
+	Name: "TSX",
+	OpCodes: opCodesMap{
 		0xBA: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.x = cpu.sp
-		cpu.setFlag(zFLag, cpu.x == 0x00)
-		cpu.setFlag(nFLag, cpu.x&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.x == 0x00)
+		cpu.setFlag(core.nFLag, cpu.x&0x80 != 0x00)
 
 		return false
 	},
@@ -1040,14 +1043,14 @@ var tsx = instruction{
 
 // TXA - Transfer X to accumulator
 var txa = instruction{
-	name: "TXA",
-	opCodes: opCodesMap{
+	Name: "TXA",
+	OpCodes: opCodesMap{
 		0x8A: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.a = cpu.x
-		cpu.setFlag(zFLag, cpu.a == 0x00)
-		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.a == 0x00)
+		cpu.setFlag(core.nFLag, cpu.a&0x80 != 0x00)
 
 		return false
 	},
@@ -1055,11 +1058,11 @@ var txa = instruction{
 
 // TXS - Transfer X to stack pointer
 var txs = instruction{
-	name: "TXS",
-	opCodes: opCodesMap{
+	Name: "TXS",
+	OpCodes: opCodesMap{
 		0x9A: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.sp = cpu.x
 
 		return false
@@ -1068,14 +1071,14 @@ var txs = instruction{
 
 // TYA - Transfer Y to accumulator
 var tya = instruction{
-	name: "TYA",
-	opCodes: opCodesMap{
+	Name: "TYA",
+	OpCodes: opCodesMap{
 		0x98: {addressing.ImpliedAddressing, 2},
 	},
-	handler: func(cpu *CPU, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu *core.CPU, addr uint16, opCode uint8, addrMode int) bool {
 		cpu.a = cpu.y
-		cpu.setFlag(zFLag, cpu.a == 0x00)
-		cpu.setFlag(nFLag, cpu.a&0x80 != 0x00)
+		cpu.setFlag(core.zFLag, cpu.a == 0x00)
+		cpu.setFlag(core.nFLag, cpu.a&0x80 != 0x00)
 
 		return false
 	},

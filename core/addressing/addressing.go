@@ -31,7 +31,7 @@ type addressingMode struct {
 	// Size in bytes of addressing mode (including opcode)
 	Size uint8
 
-	// String Format used to present address
+	// String Format used to present address when debugging
 	Format func(address uint16) string
 
 	// Addressing mode functions returns data for an instruction

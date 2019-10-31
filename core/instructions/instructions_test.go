@@ -1,9 +1,10 @@
-package core
+package instructions_test
 
 import (
 	"bufio"
 	"fmt"
 	"github.com/szymonkups/nesgo/core/addressing"
+	"github.com/szymonkups/nesgo/core/instructions"
 	"os"
 	"regexp"
 	"strconv"
@@ -22,7 +23,7 @@ func TestInstructions(t *testing.T) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	var instr *instruction
+	var instr *instructions.instruction
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -117,7 +118,7 @@ func checkIfName(line string) (string, error) {
 	return "", nil
 }
 
-func getInstructionByName(name string) *instruction {
+func getInstructionByName(name string) *instructions.instruction {
 	for _, in := range instructions {
 		if in.name == name {
 			return in
@@ -200,7 +201,7 @@ func getInstructionInfo(line string) (*instructionInfo, error) {
 	return nil, nil
 }
 
-func findByOpCode(inst *instruction, opCode uint8) (addrMode int, cycles uint8, found bool) {
+func findByOpCode(inst *instructions.instruction, opCode uint8) (addrMode int, cycles uint8, found bool) {
 	for c, val := range inst.opCodes {
 		if c == opCode {
 			return val.addrMode, val.cycles, true

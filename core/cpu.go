@@ -1,6 +1,9 @@
 package core
 
-import "github.com/szymonkups/nesgo/core/addressing"
+import (
+	"github.com/szymonkups/nesgo/core/addressing"
+	"github.com/szymonkups/nesgo/core/instructions"
+)
 
 // CPU represents 6502 processor
 type CPU struct {
@@ -26,7 +29,7 @@ type CPU struct {
 	cyclesLeft uint8
 
 	// Instructions lookup table
-	instLookup map[uint8]*instruction
+	instLookup map[uint8]*instructions.instruction
 
 	// Data bus to which CPU is connected
 	bus *bus
@@ -62,8 +65,8 @@ func NewCPU(bus *bus) *CPU {
 	cpu := CPU{}
 	cpu.bus = bus
 
-	cpu.instLookup = map[uint8]*instruction{}
-	for _, inst := range instructions {
+	cpu.instLookup = map[uint8]*instructions.instruction{}
+	for _, inst := range instructions.instructions {
 		for opCode := range inst.opCodes {
 			cpu.instLookup[opCode] = inst
 		}
@@ -150,7 +153,7 @@ func (cpu *CPU) Clock() {
 	cpu.cyclesLeft--
 }
 
-func (cpu *CPU) getInstruction(addr uint16) (*instruction, uint8, bool) {
+func (cpu *CPU) getInstruction(addr uint16) (*instructions.instruction, uint8, bool) {
 	opCode := cpu.bus.Read(addr)
 	inst, ok := cpu.instLookup[opCode]
 
