@@ -36,7 +36,7 @@ func NewPPU(bus *bus) *PPU {
 	newPPU.statusRegister.Write(0b00000000)
 	newPPU.maskRegister.Write(0b00000000)
 
-	// Write two times to zero it
+	// Set two times to zero it
 	newPPU.addrRegister.Write(0b00000000)
 	newPPU.addrRegister.Write(0b00000000)
 
@@ -84,7 +84,7 @@ func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
 		case 0x07:
 			address := ppu.addrRegister.GetAddress()
 
-			// Read is normally delayed by 1 cycle...
+			// Get is normally delayed by 1 cycle...
 			toReturn := ppu.dataBuffer
 			ppu.dataBuffer = ppu.bus.Read(address)
 

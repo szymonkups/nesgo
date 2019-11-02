@@ -41,23 +41,6 @@ type CPU struct {
 	isNMIScheduled bool
 }
 
-type flag uint8
-
-const (
-	// Carry
-	cFlag flag = 0
-	// Zero
-	zFLag flag = 1
-	// Interrupt disable
-	iFLag flag = 2
-	// Decimal mode
-	dFLag flag = 3
-	// Overflow flag
-	vFLag flag = 6
-	// Negative flag
-	nFLag flag = 7
-)
-
 // NewCPU performs cpu initialization
 // TODO: use single lookup for all cpu instances, use init() method for package
 // to initialize it
@@ -115,7 +98,7 @@ func (cpu *CPU) Clock() {
 			return
 		}
 
-		// Read instruction
+		// Get instruction
 		instruction, opCode, ok := cpu.getInstruction(cpu.pc)
 
 		// Unknown opcode - quit
@@ -138,6 +121,7 @@ func (cpu *CPU) Clock() {
 		})
 
 		// Increment program counter
+		// TODO: this is wrong on jumps -> noo need to add pc
 		cpu.pc += uint16(addrMode.Size)
 
 		// Execute instruction
@@ -168,22 +152,6 @@ func (cpu *CPU) scheduleIRQ() {
 
 func (cpu *CPU) ScheduleNMI() {
 	cpu.isNMIScheduled = true
-}
-
-func (cpu *CPU) setFlag(f flag, v bool) {
-	var flag uint8 = 1 << f
-
-	if v {
-		cpu.p |= flag
-	} else {
-		cpu.p &= ^flag
-	}
-}
-
-func (cpu *CPU) getFlag(f flag) bool {
-	var flag uint8 = 1 << f
-
-	return (cpu.p & flag) != 0
 }
 
 func (cpu *CPU) pushToStack(data uint8) {
@@ -220,7 +188,7 @@ func (cpu *CPU) handleInterrupt(addr uint16) {
 	// Disable interrupts
 	cpu.setFlag(iFLag, true)
 
-	// Read new PC
+	// Get new PC
 	cpu.pc = cpu.bus.Read16(addr)
 
 	// It takes 7 cycles
