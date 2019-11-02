@@ -23,8 +23,7 @@ func TestInstructions(t *testing.T) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	var instr *instructions.instruction
-
+	var instr *instructions.Instruction
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -40,10 +39,11 @@ func TestInstructions(t *testing.T) {
 		}
 
 		if newName != "" {
-			instr = getInstructionByName(newName)
+			var ok bool
+			instr, ok = instructions.GetInstructionByName(newName)
 
-			if instr == nil {
-				t.Errorf("Found instruction name \"%s\" in test file but cannot find in instruction list", newName)
+			if !ok {
+				t.Errorf("Found Instruction name \"%s\" in test file but cannot find in Instruction list", newName)
 				return
 			}
 
@@ -61,24 +61,24 @@ func TestInstructions(t *testing.T) {
 			addr, c, found := findByOpCode(instr, info.opCode)
 
 			if !found {
-				t.Errorf("Could not find op code %x in instrction %s", info.opCode, instr.name)
+				t.Errorf("Could not find op code %x in instrction %s", info.opCode, instr.Name)
 				return
 			}
 
 			addrMode, ok := addressing.GetAddressingById(addr)
 
 			if !ok {
-				t.Errorf("Could not find addressing mode %d for instruction %s", addr, instr.name)
+				t.Errorf("Could not find addressing mode %d for Instruction %s", addr, instr.Name)
 				return
 			}
 
 			if info.noCycles != c {
-				t.Errorf("Mismatch in cycles for instricion %s. Test file: %d, implementation: %d", instr.name, info.noCycles, c)
+				t.Errorf("Mismatch in Cycles for instricion %s. Test file: %d, implementation: %d", instr.Name, info.noCycles, c)
 				return
 			}
 
 			if info.length != addrMode.Size {
-				t.Errorf("Mismatch instruction size for instruction %s. Test file: %d, implementation: %d", instr.name, info.length, addrMode.Size)
+				t.Errorf("Mismatch Instruction size for Instruction %s. Test file: %d, implementation: %d", instr.Name, info.length, addrMode.Size)
 			}
 
 			continue
@@ -116,16 +116,6 @@ func checkIfName(line string) (string, error) {
 	}
 
 	return "", nil
-}
-
-func getInstructionByName(name string) *instructions.instruction {
-	for _, in := range instructions {
-		if in.name == name {
-			return in
-		}
-	}
-
-	return nil
 }
 
 type instructionInfo struct {
@@ -201,10 +191,10 @@ func getInstructionInfo(line string) (*instructionInfo, error) {
 	return nil, nil
 }
 
-func findByOpCode(inst *instructions.instruction, opCode uint8) (addrMode int, cycles uint8, found bool) {
-	for c, val := range inst.opCodes {
+func findByOpCode(inst *instructions.Instruction, opCode uint8) (addrMode int, cycles uint8, found bool) {
+	for c, val := range inst.AddrByOpCode {
 		if c == opCode {
-			return val.addrMode, val.cycles, true
+			return val.AddrMode, val.Cycles, true
 		}
 	}
 

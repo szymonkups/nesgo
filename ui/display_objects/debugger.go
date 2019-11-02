@@ -32,19 +32,19 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	}
 	//
 	// Draw registers
-	reg := d.CPU.GetDebugInfo()
-	drawRegister16(e, "PC", reg.PC, 2, 9)
-	drawRegister8(e, "SP", reg.SP, 63, 9)
-	drawRegister8(e, "A", reg.A, 108, 9)
-	drawRegister8(e, "X", reg.X, 145, 9)
-	drawRegister8(e, "Y", reg.Y, 182, 9)
-	drawFlags8(e, "NV--DIZC", reg.P, 219, 9)
-
-	// Draw current memory range
-	d.drawAssembly(e, 2, 21, reg.PC)
-
-	// Draw palettes
-	d.drawPalettes(e, 0, 130)
+	//reg := d.CPU.GetDebugInfo()
+	//drawRegister16(e, "PC", reg.PC, 2, 9)
+	//drawRegister8(e, "SP", reg.SP, 63, 9)
+	//drawRegister8(e, "A", reg.A, 108, 9)
+	//drawRegister8(e, "X", reg.X, 145, 9)
+	//drawRegister8(e, "Y", reg.Y, 182, 9)
+	//drawFlags8(e, "NV--DIZC", reg.P, 219, 9)
+	//
+	//// Draw current memory range
+	//d.drawAssembly(e, 2, 21, reg.PC)
+	//
+	//// Draw palettes
+	//d.drawPalettes(e, 0, 130)
 
 	//chr := d.CRT.GetCHRMem()
 	//

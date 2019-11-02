@@ -1,9 +1,72 @@
 package instructions
 
 import (
+	"fmt"
 	"github.com/szymonkups/nesgo/core/addressing"
 	"github.com/szymonkups/nesgo/core/flags"
 )
+
+var instLookup = map[uint8]*Instruction{}
+
+func init() {
+	// Populate Instruction lookup for easy access to instructions by OpCode
+	for _, instruction := range instructions {
+		for op, _ := range instruction.AddrByOpCode {
+			instLookup[op] = instruction
+		}
+	}
+}
+
+func ExecuteInstruction(opCode uint8, cpu CPUState) error {
+	// Find instruction by opcode
+	instruction, ok := instLookup[opCode]
+
+	if !ok {
+		return fmt.Errorf("cannot find Instruction by opcode $%02X", opCode)
+	}
+
+	// Check which addressing is used by checking by opcode
+	addrModeId := instruction.AddrByOpCode[opCode].AddrMode
+
+	// Check how many cycles instruction with this addressing needs
+	cycles := instruction.AddrByOpCode[opCode].Cycles
+
+	// Get addressing mode by id stored in instruction
+	addrMode, ok := addressing.GetAddressingById(addrModeId)
+
+	if !ok {
+		return fmt.Errorf("cannot find addressing mode with id %d for opcode $%02X", addrModeId, opCode)
+	}
+
+	// Calculate operand address using addressing mode
+	addr, addCycleAddr := addrMode.CalculateAddress(cpu.GetPC(), cpu.GetX(), cpu.GetY(), cpu.Read)
+
+	// Move Program Counter forward - opcode + operand
+	cpu.SetPC(cpu.GetPC() + uint16(addrMode.Size))
+
+	// Execute instruction
+	addCycleInst := instruction.Handler(cpu, addr, opCode, addrModeId)
+
+	// Add cycles needed by this instruction
+	cpu.AddCycles(cycles)
+
+	// Sometimes one cycle must be added when addressing and instruction require it
+	if addCycleAddr && addCycleInst {
+		cpu.AddCycles(1)
+	}
+
+	return nil
+}
+
+func GetInstructionByName(name string) (*Instruction, bool) {
+	for _, inst := range instructions {
+		if inst.Name == name {
+			return inst, true
+		}
+	}
+
+	return nil, false
+}
 
 type CPUState interface {
 	// Program Counter
@@ -41,65 +104,45 @@ type CPUState interface {
 	PullFromStack() uint8
 	PullFromStack16() uint16
 
-	// Add cycles
+	// Add Cycles
 	AddCycles(uint8)
 }
-
-//type CPUState struct {
-//	// Program Counter
-//	pc uint16
-//
-//	// Stack Pointer
-//	sp uint8
-//
-//	// Accumulator
-//	a uint8
-//
-//	// X register
-//	x uint8
-//
-//	// Y register
-//	y uint8
-//
-//	// Processor status flags
-//	p uint8
-//}
 
 // Instruction set
 // ADC AND ASL BCC BCS BEQ BIT BMI BNE BPL BRK BVC BVS CLC
 // CLD CLI CLV CMP CPX CPY DEC DEX DEY EOR INC INX INY JMP
 // JSR LDA LDX LDY LSR NOP ORA PHA PHP PLA PLP ROL ROR RTI
 // RTS SBC SEC SED SEI STA STX STY TAX TAY TSX TXA TXS TYA
-var instructions = []*instruction{
+var instructions = []*Instruction{
 	&adc, &and, &asl, &bcc, &bcs, &beq, &bit, &bmi, &bne, &bpl, &brk, &bvc, &bvs, &clc,
 	&cld, &cli, &clv, &cmp, &cpx, &cpy, &dec, &dex, &dey, &eor, &inc, &inx, &iny, &jmp,
 	&jsr, &lda, &ldx, &ldy, &lsr, &nop, &ora, &pha, &php, &pla, &plp, &rol, &ror, &rti,
 	&rts, &sbc, &sec, &sed, &sei, &sta, &stx, &sty, &tax, &tay, &tsx, &txa, &txs, &tya,
 }
 
-// Instruction - describes instruction
-type instruction struct {
+// Instruction - describes Instruction
+type Instruction struct {
 	// Human readable name - for debugging
 	Name string
 
 	// Op codes op code per addressing mode
-	OpCodes opCodesMap
+	AddrByOpCode opCodesMap
 
 	// Instruction handler
 	Handler instructionHandler
 }
 
 type opCodesMap map[uint8]struct {
-	addrMode int
-	cycles   uint8
+	AddrMode int
+	Cycles   uint8
 }
 
-// Actual instruction code. It should return true if there is a potential to
+// Actual Instruction code. It should return true if there is a potential to
 // add additional clock cycle - this will be checked together with addressing
 // mode result. If both return true it will mean that one cycle needs to be
-// added to instruction cycles.
+// added to Instruction Cycles.
 // We pass CPU instance, absolute address calculated by correct addressing mode,
-// actual op code (as same instruction can have different op codes depending on
+// actual op code (as same Instruction can have different op codes depending on
 // addressing mode) and addressing mode itself.
 type instructionHandler func(cpuState CPUState, addr uint16, opCode uint8, addrMode int) bool
 
@@ -108,9 +151,9 @@ type instructionHandler func(cpuState CPUState, addr uint16, opCode uint8, addrM
 // *****************************************************************************
 
 // ADC - Add with carry
-var adc = instruction{
+var adc = Instruction{
 	Name: "ADC",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x69: {addressing.ImmediateAddressing, 2},
 		0x65: {addressing.ZeroPageAddressing, 3},
 		0x75: {addressing.ZeroPageXAddressing, 4},
@@ -140,9 +183,9 @@ var adc = instruction{
 }
 
 // SBC - Subtract with carry
-var sbc = instruction{
+var sbc = Instruction{
 	Name: "SBC",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xE9: {addressing.ImmediateAddressing, 2},
 		0xE5: {addressing.ZeroPageAddressing, 3},
 		0xF5: {addressing.ZeroPageXAddressing, 4},
@@ -172,9 +215,9 @@ var sbc = instruction{
 }
 
 // ASL - Arithmetic shift left
-var asl = instruction{
+var asl = Instruction{
 	Name: "ASL",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x0A: {addressing.AccumulatorAddressing, 2},
 		0x06: {addressing.ZeroPageAddressing, 5},
 		0x16: {addressing.ZeroPageXAddressing, 6},
@@ -203,9 +246,9 @@ var asl = instruction{
 }
 
 // AND - Bitwise logic AND
-var and = instruction{
+var and = Instruction{
 	Name: "AND",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x29: {addressing.ImmediateAddressing, 2},
 		0x25: {addressing.ZeroPageAddressing, 3},
 		0x35: {addressing.ZeroPageXAddressing, 4},
@@ -225,9 +268,9 @@ var and = instruction{
 }
 
 // BCC - Branch if carry is clear
-var bcc = instruction{
+var bcc = Instruction{
 	Name: "BCC",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x90: {addressing.RelativeAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -241,9 +284,9 @@ var bcc = instruction{
 }
 
 // BCS - Branch if carry is set
-var bcs = instruction{
+var bcs = Instruction{
 	Name: "BCS",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xB0: {addressing.RelativeAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -257,9 +300,9 @@ var bcs = instruction{
 }
 
 // BEQ - Branch if equal - zero flag is set
-var beq = instruction{
+var beq = Instruction{
 	Name: "BEQ",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xF0: {addressing.RelativeAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -274,9 +317,9 @@ var beq = instruction{
 }
 
 // BMI - Branch if minus - negative flag is set
-var bmi = instruction{
+var bmi = Instruction{
 	Name: "BMI",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x30: {addressing.RelativeAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -290,9 +333,9 @@ var bmi = instruction{
 }
 
 // BNE - Branch if no equal - zero flag is not set
-var bne = instruction{
+var bne = Instruction{
 	Name: "BNE",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xD0: {addressing.RelativeAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -306,9 +349,9 @@ var bne = instruction{
 }
 
 // BPL - Branch if positive - negative flag is not set
-var bpl = instruction{
+var bpl = Instruction{
 	Name: "BPL",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x10: {addressing.RelativeAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -322,9 +365,9 @@ var bpl = instruction{
 }
 
 // BVC - Branch if overflow clear
-var bvc = instruction{
+var bvc = Instruction{
 	Name: "BVC",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x50: {addressing.RelativeAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -338,9 +381,9 @@ var bvc = instruction{
 }
 
 // BVS - Branch if overflow is set
-var bvs = instruction{
+var bvs = Instruction{
 	Name: "BVS",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x70: {addressing.RelativeAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -366,9 +409,9 @@ func branchHandler(cpu CPUState, addr uint16) {
 }
 
 // BIT - bit test
-var bit = instruction{
+var bit = Instruction{
 	Name: "BIT",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x24: {addressing.ZeroPageAddressing, 3},
 		0x2C: {addressing.AbsoluteAddressing, 4},
 	},
@@ -386,9 +429,9 @@ var bit = instruction{
 }
 
 // BRK - Force interrupt
-var brk = instruction{
+var brk = Instruction{
 	Name: "BRK",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x00: {addressing.ImpliedAddressing, 7},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -416,9 +459,9 @@ var brk = instruction{
 }
 
 // INX - Increment X register by one
-var inx = instruction{
+var inx = Instruction{
 	Name: "INX",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xE8: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -430,9 +473,9 @@ var inx = instruction{
 }
 
 // INY - Increment Y register by one
-var iny = instruction{
+var iny = Instruction{
 	Name: "INY",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xC8: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -444,9 +487,9 @@ var iny = instruction{
 }
 
 // INC - Increment memory location
-var inc = instruction{
+var inc = Instruction{
 	Name: "INC",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xE6: {addressing.ZeroPageAddressing, 5},
 		0xF6: {addressing.ZeroPageXAddressing, 6},
 		0xEE: {addressing.AbsoluteAddressing, 6},
@@ -463,9 +506,9 @@ var inc = instruction{
 }
 
 // CLC - Clear carry flag
-var clc = instruction{
+var clc = Instruction{
 	Name: "CLC",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x18: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -476,9 +519,9 @@ var clc = instruction{
 }
 
 // CLD - Clear decimal flag
-var cld = instruction{
+var cld = Instruction{
 	Name: "CLD",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xD8: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -489,9 +532,9 @@ var cld = instruction{
 }
 
 // CLI - Clear interrupt flag (disable interrupts)
-var cli = instruction{
+var cli = Instruction{
 	Name: "CLI",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x58: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -502,9 +545,9 @@ var cli = instruction{
 }
 
 // CLV - Clear overflow flag
-var clv = instruction{
+var clv = Instruction{
 	Name: "CLV",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xB8: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -515,9 +558,9 @@ var clv = instruction{
 }
 
 // CMP - Compare accumulator
-var cmp = instruction{
+var cmp = Instruction{
 	Name: "CMP",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xC9: {addressing.ImmediateAddressing, 2},
 		0xC5: {addressing.ZeroPageAddressing, 3},
 		0xD5: {addressing.ZeroPageXAddressing, 4},
@@ -535,9 +578,9 @@ var cmp = instruction{
 }
 
 // CPX - Compare X register
-var cpx = instruction{
+var cpx = Instruction{
 	Name: "CPX",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xE0: {addressing.ImmediateAddressing, 2},
 		0xE4: {addressing.ZeroPageAddressing, 3},
 		0xEC: {addressing.AbsoluteAddressing, 4},
@@ -550,9 +593,9 @@ var cpx = instruction{
 }
 
 // CPY - Compare Y register
-var cpy = instruction{
+var cpy = Instruction{
 	Name: "CPY",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xC0: {addressing.ImmediateAddressing, 2},
 		0xC4: {addressing.ZeroPageAddressing, 3},
 		0xCC: {addressing.AbsoluteAddressing, 4},
@@ -574,9 +617,9 @@ func compareHandler(cpu CPUState, a byte, addr uint16) {
 }
 
 // DEC - decrement memory
-var dec = instruction{
+var dec = Instruction{
 	Name: "DEC",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xC6: {addressing.ZeroPageAddressing, 5},
 		0xD6: {addressing.ZeroPageXAddressing, 6},
 		0xCE: {addressing.AbsoluteAddressing, 6},
@@ -593,9 +636,9 @@ var dec = instruction{
 }
 
 // DEX - decrement X register
-var dex = instruction{
+var dex = Instruction{
 	Name: "DEX",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xCA: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -607,9 +650,9 @@ var dex = instruction{
 }
 
 // DEY - decrement Y register
-var dey = instruction{
+var dey = Instruction{
 	Name: "DEY",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x88: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -624,9 +667,9 @@ var dey = instruction{
 }
 
 // EOR - Exclusive OR
-var eor = instruction{
+var eor = Instruction{
 	Name: "EOR",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x49: {addressing.ImmediateAddressing, 2},
 		0x45: {addressing.ZeroPageAddressing, 3},
 		0x55: {addressing.ZeroPageXAddressing, 4},
@@ -646,9 +689,9 @@ var eor = instruction{
 }
 
 // PHA - Push accumulator to stack
-var pha = instruction{
+var pha = Instruction{
 	Name: "PHA",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x48: {addressing.ImpliedAddressing, 3},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -658,9 +701,9 @@ var pha = instruction{
 }
 
 // PHP - Push processor status to stack
-var php = instruction{
+var php = Instruction{
 	Name: "PHP",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x08: {addressing.ImpliedAddressing, 3},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -672,9 +715,9 @@ var php = instruction{
 }
 
 // PLA = Pull accumulator from stack
-var pla = instruction{
+var pla = Instruction{
 	Name: "PLA",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x68: {addressing.ImpliedAddressing, 4},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -686,9 +729,9 @@ var pla = instruction{
 }
 
 // PLP = Pull processor status from stack
-var plp = instruction{
+var plp = Instruction{
 	Name: "PLP",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x28: {addressing.ImpliedAddressing, 4},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -700,7 +743,7 @@ var plp = instruction{
 }
 
 // JMP = Jump to address
-var jmp = instruction{
+var jmp = Instruction{
 	// TODO: check from http://obelisk.me.uk/6502/reference.html#JMP
 	// An original 6502 has does not correctly fetch the target address if the indirect vector falls on a page
 	// boundary (e.g. $xxFF where xx is any value from $00 to $FF). In this case fetches the LSB from $xxFF as
@@ -708,7 +751,7 @@ var jmp = instruction{
 	// always ensure the indirect vector is not at the end of the page.
 
 	Name: "JMP",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x4C: {addressing.AbsoluteAddressing, 3},
 		0x6C: {addressing.IndirectAddressing, 5},
 	},
@@ -719,9 +762,9 @@ var jmp = instruction{
 }
 
 // JSR - Jump to subroutine
-var jsr = instruction{
+var jsr = Instruction{
 	Name: "JSR",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x20: {addressing.AbsoluteAddressing, 6},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -733,9 +776,9 @@ var jsr = instruction{
 }
 
 // LDA - Load accumulator
-var lda = instruction{
+var lda = Instruction{
 	Name: "LDA",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xA9: {addressing.ImmediateAddressing, 2},
 		0xA5: {addressing.ZeroPageAddressing, 3},
 		0xB5: {addressing.ZeroPageXAddressing, 4},
@@ -754,9 +797,9 @@ var lda = instruction{
 }
 
 // LDX - Load X register
-var ldx = instruction{
+var ldx = Instruction{
 	Name: "LDX",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xA2: {addressing.ImmediateAddressing, 2},
 		0xA6: {addressing.ZeroPageAddressing, 3},
 		0xB6: {addressing.ZeroPageYAddressing, 4},
@@ -772,9 +815,9 @@ var ldx = instruction{
 }
 
 // LDY - Load Y register
-var ldy = instruction{
+var ldy = Instruction{
 	Name: "LDY",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xA0: {addressing.ImmediateAddressing, 2},
 		0xA4: {addressing.ZeroPageAddressing, 3},
 		0xB4: {addressing.ZeroPageXAddressing, 4},
@@ -790,9 +833,9 @@ var ldy = instruction{
 }
 
 // LSR - Logical shift right
-var lsr = instruction{
+var lsr = Instruction{
 	Name: "LSR",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x4A: {addressing.AccumulatorAddressing, 2},
 		0x46: {addressing.ZeroPageAddressing, 5},
 		0x56: {addressing.ZeroPageXAddressing, 6},
@@ -827,9 +870,9 @@ var lsr = instruction{
 
 // NOP - No operation
 // TODO: there is a lot of unofficial op codes that does NOP, add them
-var nop = instruction{
+var nop = Instruction{
 	Name: "NOP",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xEA: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -838,9 +881,9 @@ var nop = instruction{
 }
 
 // ORA - Logical inclusive OR
-var ora = instruction{
+var ora = Instruction{
 	Name: "ORA",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x09: {addressing.ImmediateAddressing, 2},
 		0x05: {addressing.ZeroPageAddressing, 3},
 		0x15: {addressing.ZeroPageXAddressing, 4},
@@ -859,9 +902,9 @@ var ora = instruction{
 }
 
 // ROL - Rotate left
-var rol = instruction{
+var rol = Instruction{
 	Name: "ROL",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x2A: {addressing.AccumulatorAddressing, 2},
 		0x26: {addressing.ZeroPageAddressing, 5},
 		0x36: {addressing.ZeroPageXAddressing, 6},
@@ -899,9 +942,9 @@ var rol = instruction{
 }
 
 // ROR - Rotate right
-var ror = instruction{
+var ror = Instruction{
 	Name: "ROR",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x6A: {addressing.AccumulatorAddressing, 2},
 		0x66: {addressing.ZeroPageAddressing, 5},
 		0x76: {addressing.ZeroPageXAddressing, 6},
@@ -939,9 +982,9 @@ var ror = instruction{
 }
 
 // RTI - Return from interrupt
-var rti = instruction{
+var rti = Instruction{
 	Name: "RTI",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x40: {addressing.ImpliedAddressing, 6},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -954,9 +997,9 @@ var rti = instruction{
 }
 
 // RTS - Return from subroutine
-var rts = instruction{
+var rts = Instruction{
 	Name: "RTS",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x60: {addressing.ImpliedAddressing, 6},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -968,9 +1011,9 @@ var rts = instruction{
 }
 
 // SEC - Set carry flag
-var sec = instruction{
+var sec = Instruction{
 	Name: "SEC",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x38: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -981,9 +1024,9 @@ var sec = instruction{
 }
 
 // SED - Set decimal flag
-var sed = instruction{
+var sed = Instruction{
 	Name: "SED",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xF8: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -994,9 +1037,9 @@ var sed = instruction{
 }
 
 // SEI - Set interrupt disable flag
-var sei = instruction{
+var sei = Instruction{
 	Name: "SEI",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x78: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -1007,9 +1050,9 @@ var sei = instruction{
 }
 
 // STA - Store accumulator
-var sta = instruction{
+var sta = Instruction{
 	Name: "STA",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x85: {addressing.ZeroPageAddressing, 3},
 		0x95: {addressing.ZeroPageXAddressing, 4},
 		0x8D: {addressing.AbsoluteAddressing, 4},
@@ -1026,9 +1069,9 @@ var sta = instruction{
 }
 
 // STX - Store X register
-var stx = instruction{
+var stx = Instruction{
 	Name: "STX",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x86: {addressing.ZeroPageAddressing, 3},
 		0x96: {addressing.ZeroPageYAddressing, 4},
 		0x8E: {addressing.AbsoluteAddressing, 4},
@@ -1041,9 +1084,9 @@ var stx = instruction{
 }
 
 // STY - Store Y register
-var sty = instruction{
+var sty = Instruction{
 	Name: "STY",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x84: {addressing.ZeroPageAddressing, 3},
 		0x94: {addressing.ZeroPageXAddressing, 4},
 		0x8C: {addressing.AbsoluteAddressing, 4},
@@ -1056,9 +1099,9 @@ var sty = instruction{
 }
 
 // TAX - Transfer accumulator to X
-var tax = instruction{
+var tax = Instruction{
 	Name: "TAX",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xAA: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -1070,9 +1113,9 @@ var tax = instruction{
 }
 
 // TAY - Transfer accumulator to Y
-var tay = instruction{
+var tay = Instruction{
 	Name: "TAY",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xA8: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -1084,9 +1127,9 @@ var tay = instruction{
 }
 
 // TSX - Transfer stack pointer to X
-var tsx = instruction{
+var tsx = Instruction{
 	Name: "TSX",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0xBA: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -1098,9 +1141,9 @@ var tsx = instruction{
 }
 
 // TXA - Transfer X to accumulator
-var txa = instruction{
+var txa = Instruction{
 	Name: "TXA",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x8A: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -1112,9 +1155,9 @@ var txa = instruction{
 }
 
 // TXS - Transfer X to stack pointer
-var txs = instruction{
+var txs = Instruction{
 	Name: "TXS",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x9A: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
@@ -1125,9 +1168,9 @@ var txs = instruction{
 }
 
 // TYA - Transfer Y to accumulator
-var tya = instruction{
+var tya = Instruction{
 	Name: "TYA",
-	OpCodes: opCodesMap{
+	AddrByOpCode: opCodesMap{
 		0x98: {addressing.ImpliedAddressing, 2},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {

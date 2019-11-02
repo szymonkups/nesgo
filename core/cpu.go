@@ -1,8 +1,7 @@
 package core
 
 import (
-	"github.com/szymonkups/nesgo/core/addressing"
-	"github.com/szymonkups/nesgo/core/instructions"
+	"github.com/szymonkups/nesgo/core/flags"
 )
 
 // CPU represents 6502 processor
@@ -23,13 +22,10 @@ type CPU struct {
 	y uint8
 
 	// Processor status flags
-	p uint8
+	p *flags.Flags
 
 	// Additional cycles to perform on current instruction
 	cyclesLeft uint8
-
-	// Instructions lookup table
-	instLookup map[uint8]*instructions.instruction
 
 	// Data bus to which CPU is connected
 	bus *bus
@@ -47,13 +43,14 @@ type CPU struct {
 func NewCPU(bus *bus) *CPU {
 	cpu := CPU{}
 	cpu.bus = bus
+	cpu.p = new(flags.Flags)
 
-	cpu.instLookup = map[uint8]*instructions.instruction{}
-	for _, inst := range instructions.instructions {
-		for opCode := range inst.opCodes {
-			cpu.instLookup[opCode] = inst
-		}
-	}
+	//cpu.instLookup = map[uint8]*instructions.instruction{}
+	//for _, inst := range instructions.instructions {
+	//	for opCode := range inst.opCodes {
+	//		cpu.instLookup[opCode] = inst
+	//	}
+	//}
 
 	cpu.Reset()
 
@@ -67,7 +64,7 @@ func (cpu *CPU) Reset() {
 	cpu.x = 0
 	cpu.y = 0
 	cpu.sp = 0xFD
-	cpu.p = 0b00100000
+	cpu.p.SetByte(0b00100000)
 
 	// Stack pointer is initialized to address found under 0xFFFC
 	// Where start address is stored
@@ -98,54 +95,51 @@ func (cpu *CPU) Clock() {
 			return
 		}
 
-		// Get instruction
-		instruction, opCode, ok := cpu.getInstruction(cpu.pc)
+		// Read opcode
+		//opCode := cpu.bus.Read(cpu.pc)
+		//instructions.ExecuteInstruction(opCode, cpu)
 
-		// Unknown opcode - quit
-		if !ok {
-			// TODO: Think what to do here
-			return
-		}
-
-		// Find correct addressing mode for this op code
-		addrModeId := instruction.opCodes[opCode].addrMode
-
-		// Set new cycles needed for this instruction
-		cpu.cyclesLeft = instruction.opCodes[opCode].cycles
-
-		// Execute addressing mode
-		// TODO: Think what to do here
-		addrMode, _ := addressing.GetAddressingById(addrModeId)
-		address, addCycleAddr := addrMode.CalculateAddress(cpu.pc, cpu.x, cpu.y, func(addr uint16) uint8 {
-			return cpu.bus.Read(addr)
-		})
-
-		// Increment program counter
-		// TODO: this is wrong on jumps -> noo need to add pc
-		cpu.pc += uint16(addrMode.Size)
-
-		// Execute instruction
-		addCycleHandler := instruction.handler(cpu, address, opCode, addrModeId)
-
-		// We might need to add additional cycle
-		if addCycleAddr && addCycleHandler {
-			cpu.cyclesLeft++
-		}
+		//// Get instruction
+		//instruction, opCode, ok := cpu.getInstruction(cpu.pc)
+		//
+		//// Unknown opcode - quit
+		//if !ok {
+		//	// TODO: Think what to do here
+		//	return
+		//}
+		//
+		//// Find correct addressing mode for this op code
+		//addrModeId := instruction.opCodes[opCode].addrMode
+		//
+		//// Set new cycles needed for this instruction
+		//cpu.cyclesLeft = instruction.opCodes[opCode].cycles
+		//
+		//// Execute addressing mode
+		//// TODO: Think what to do here
+		//addrMode, _ := addressing.GetAddressingById(addrModeId)
+		//address, addCycleAddr := addrMode.CalculateAddress(cpu.pc, cpu.x, cpu.y, func(addr uint16) uint8 {
+		//	return cpu.bus.Read(addr)
+		//})
+		//
+		//// Increment program counter
+		//// TODO: this is wrong on jumps -> noo need to add pc
+		//cpu.pc += uint16(addrMode.Size)
+		//
+		//// Execute instruction
+		//addCycleHandler := instruction.handler(cpu, address, opCode, addrModeId)
+		//
+		//// We might need to add additional cycle
+		//if addCycleAddr && addCycleHandler {
+		//	cpu.cyclesLeft++
+		//}
 	}
 
 	// One cycle done
 	cpu.cyclesLeft--
 }
 
-func (cpu *CPU) getInstruction(addr uint16) (*instructions.instruction, uint8, bool) {
-	opCode := cpu.bus.Read(addr)
-	inst, ok := cpu.instLookup[opCode]
-
-	return inst, opCode, ok
-}
-
 func (cpu *CPU) scheduleIRQ() {
-	if !cpu.getFlag(iFLag) {
+	if !cpu.p.Get(flags.I) {
 		cpu.isIRQScheduled = true
 	}
 }
@@ -183,10 +177,10 @@ func (cpu *CPU) handleInterrupt(addr uint16) {
 	// Push status to stack
 	// https://wiki.nesdev.com/w/index.php/Status_flags
 	// Set 5 bit and unset 4 bit
-	cpu.pushToStack(cpu.p&0b11001111 | 0b00100000)
+	cpu.pushToStack(cpu.p.GetByte()&0b11001111 | 0b00100000)
 
 	// Disable interrupts
-	cpu.setFlag(iFLag, true)
+	cpu.p.Set(flags.I, true)
 
 	// Get new PC
 	cpu.pc = cpu.bus.Read16(addr)
@@ -205,16 +199,16 @@ type CPUDebugInfo struct {
 	P  uint8
 }
 
-func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
-	return CPUDebugInfo{
-		PC: cpu.pc,
-		SP: cpu.sp,
-		A:  cpu.a,
-		X:  cpu.x,
-		Y:  cpu.y,
-		P:  cpu.p,
-	}
-}
+//func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
+//	return CPUDebugInfo{
+//		PC: cpu.pc,
+//		SP: cpu.sp,
+//		A:  cpu.a,
+//		X:  cpu.x,
+//		Y:  cpu.y,
+//		P:  cpu.p,
+//	}
+//}
 
 type DisassembleInfo struct {
 	OpCode          uint8
@@ -226,23 +220,23 @@ type DisassembleInfo struct {
 
 func (cpu *CPU) Disassemble(addr uint16) (*DisassembleInfo, bool) {
 	info := DisassembleInfo{}
-	info.OpCode = cpu.bus.ReadDebug(addr)
-	inst, ok := cpu.instLookup[info.OpCode]
-
-	if !ok {
-		return nil, false
-	}
-
-	info.InstructionName = inst.name
-
-	// TODO: handle errors here
-	addrMode, _ := addressing.GetAddressingById(inst.opCodes[info.OpCode].addrMode)
-	address, _ := addrMode.CalculateAddress(addr, cpu.x, cpu.y, func(addr uint16) uint8 {
-		return cpu.bus.ReadDebug(addr)
-	})
-	info.Operand = addrMode.Format(address)
-	info.AddressingName = addrMode.Name
-	info.Size = addrMode.Size
+	//info.OpCode = cpu.bus.ReadDebug(addr)
+	//inst, ok := cpu.instLookup[info.OpCode]
+	//
+	//if !ok {
+	//	return nil, false
+	//}
+	//
+	//info.InstructionName = inst.name
+	//
+	//// TODO: handle errors here
+	//addrMode, _ := addressing.GetAddressingById(inst.opCodes[info.OpCode].addrMode)
+	//address, _ := addrMode.CalculateAddress(addr, cpu.x, cpu.y, func(addr uint16) uint8 {
+	//	return cpu.bus.ReadDebug(addr)
+	//})
+	//info.Operand = addrMode.Format(address)
+	//info.AddressingName = addrMode.Name
+	//info.Size = addrMode.Size
 
 	return &info, true
 
