@@ -768,7 +768,7 @@ var jsr = Instruction{
 		0x20: {addressing.AbsoluteAddressing, 6},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
-		cpu.PushToStack16(cpu.GetPC() + 2)
+		cpu.PushToStack16(cpu.GetPC() - 1)
 		cpu.SetPC(addr)
 
 		return false
@@ -1003,7 +1003,6 @@ var rts = Instruction{
 		0x60: {addressing.ImpliedAddressing, 6},
 	},
 	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
-		// TODO this need to be checked if +1 is correct
 		cpu.SetPC(cpu.PullFromStack16() + 1)
 
 		return false
