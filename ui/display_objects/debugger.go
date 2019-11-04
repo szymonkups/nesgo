@@ -32,27 +32,27 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	}
 	//
 	// Draw registers
-	//reg := d.CPU.GetDebugInfo()
-	//drawRegister16(e, "PC", reg.PC, 2, 9)
-	//drawRegister8(e, "SP", reg.SP, 63, 9)
-	//drawRegister8(e, "A", reg.A, 108, 9)
-	//drawRegister8(e, "X", reg.X, 145, 9)
-	//drawRegister8(e, "Y", reg.Y, 182, 9)
-	//drawFlags8(e, "NV--DIZC", reg.P, 219, 9)
-	//
-	//// Draw current memory range
-	//d.drawAssembly(e, 2, 21, reg.PC)
-	//
-	//// Draw palettes
-	//d.drawPalettes(e, 0, 130)
+	reg := d.CPU.GetDebugInfo()
+	drawRegister16(e, "PC", reg.PC, 2, 9)
+	drawRegister8(e, "SP", reg.SP, 63, 9)
+	drawRegister8(e, "A", reg.A, 108, 9)
+	drawRegister8(e, "X", reg.X, 145, 9)
+	drawRegister8(e, "Y", reg.Y, 182, 9)
+	drawFlags8(e, "NV--DIZC", reg.P, 219, 9)
 
-	//chr := d.CRT.GetCHRMem()
+	// Draw current memory range
+	d.drawAssembly(e, 2, 21, reg.PC)
 	//
-	//for y := 0; y < 20; y++ {
-	//	for x := 0; x < 16; x++ {
-	//		d.drawSinglePattern(e, x+(y*16), chr, 10+(int32(x)*8), 40+(int32(y)*8))
-	//	}
-	//}
+	// Draw palettes
+	d.drawPalettes(e, 0, 130)
+
+	chr := d.CRT.GetCHRMem()
+
+	for y := 0; y < 20; y++ {
+		for x := 0; x < 16; x++ {
+			d.drawSinglePattern(e, x+(y*16), chr, 10+(int32(x)*8), 300+(int32(y)*8))
+		}
+	}
 
 	return nil
 }
@@ -163,12 +163,17 @@ func (d *Debugger) drawAssembly(e *engine.UIEngine, x, y int32, startAddr uint16
 	e.FillRect(x, y, 292, 8, 0xFF, 0, 0, 0xFF)
 	addr := startAddr
 
-	for i := 0; i < 10; i++ {
-		info, ok := d.CPU.Disassemble(addr)
+	clone := d.CPU.Clone()
 
-		if !ok {
+	for i := 0; i < 10; i++ {
+		info, err := d.CPU.Disassemble(addr, &clone)
+
+		if err != nil {
+			// TODO: error handling
 			continue
 		}
+
+		clone.SetPC(clone.GetPC() + uint16(info.Size))
 
 		buf.Truncate(0)
 		fmt.Fprintf(w, "$%04X %s %s\t{%s}", addr, info.InstructionName, info.Operand, info.AddressingName)

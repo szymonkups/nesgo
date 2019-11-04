@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/szymonkups/nesgo/core/flags"
+	"github.com/szymonkups/nesgo/core/instructions"
 )
 
 // CPU represents 6502 processor
@@ -37,24 +38,14 @@ type CPU struct {
 	isNMIScheduled bool
 }
 
-// NewCPU performs cpu initialization
-// TODO: use single lookup for all cpu instances, use init() method for package
-// to initialize it
 func NewCPU(bus *bus) *CPU {
-	cpu := CPU{}
+	cpu := new(CPU)
 	cpu.bus = bus
 	cpu.p = new(flags.Flags)
 
-	//cpu.instLookup = map[uint8]*instructions.instruction{}
-	//for _, inst := range instructions.instructions {
-	//	for opCode := range inst.opCodes {
-	//		cpu.instLookup[opCode] = inst
-	//	}
-	//}
-
 	cpu.Reset()
 
-	return &cpu
+	return cpu
 }
 
 // Reset - resets cpu to known state
@@ -78,6 +69,97 @@ func (cpu *CPU) GetCyclesLeft() uint8 {
 	return cpu.cyclesLeft
 }
 
+func (cpu *CPU) GetPC() uint16 {
+	return cpu.pc
+}
+
+func (cpu *CPU) SetPC(a uint16) uint16 {
+	cpu.pc = a
+	return cpu.pc
+}
+
+func (cpu *CPU) SetSP(a uint8) uint8 {
+	cpu.sp = a
+	return cpu.sp
+}
+
+func (cpu *CPU) GetSP() uint8 {
+	return cpu.sp
+}
+
+func (cpu *CPU) SetA(a uint8) uint8 {
+	cpu.a = a
+	return cpu.a
+}
+
+func (cpu *CPU) GetA() uint8 {
+	return cpu.a
+}
+
+func (cpu *CPU) SetX(a uint8) uint8 {
+	cpu.x = a
+	return cpu.x
+}
+
+func (cpu *CPU) GetX() uint8 {
+	return cpu.x
+}
+
+func (cpu *CPU) SetY(a uint8) uint8 {
+	cpu.y = a
+	return cpu.y
+}
+
+func (cpu *CPU) GetY() uint8 {
+	return cpu.y
+}
+
+func (cpu *CPU) GetStatusFlags() *flags.Flags {
+	return cpu.p
+}
+
+func (cpu *CPU) Read(addr uint16) uint8 {
+	return cpu.bus.Read(addr)
+}
+
+func (cpu *CPU) Read16(addr uint16) uint16 {
+	return cpu.bus.Read16(addr)
+}
+
+func (cpu *CPU) Write(addr uint16, data uint8) {
+	cpu.bus.Write(addr, data)
+}
+
+func (cpu *CPU) Write16(addr uint16, data uint16) {
+	cpu.bus.Write16(addr, data)
+}
+
+func (cpu *CPU) PushToStack(data uint8) {
+	cpu.bus.Write(0x0100+uint16(cpu.sp), data)
+	cpu.sp--
+}
+
+func (cpu *CPU) PushToStack16(d uint16) {
+	cpu.PushToStack(uint8((d >> 8) & 0x00FF))
+	cpu.PushToStack(uint8(d & 0x00FF))
+}
+
+func (cpu *CPU) PullFromStack() uint8 {
+	cpu.sp++
+	return cpu.bus.Read(0x0100 + uint16(cpu.sp))
+}
+
+func (cpu *CPU) PullFromStack16() uint16 {
+	low := uint16(cpu.PullFromStack())
+	high := uint16(cpu.PullFromStack())
+
+	return (high << 8) | low
+}
+
+func (cpu *CPU) AddCycles(c uint8) {
+	cpu.cyclesLeft += c
+}
+
 // Clock - execute single clock cycle
 func (cpu *CPU) Clock() {
 	if cpu.cyclesLeft == 0 {
@@ -96,42 +178,13 @@ func (cpu *CPU) Clock() {
 		}
 
 		// Read opcode
-		//opCode := cpu.bus.Read(cpu.pc)
-		//instructions.ExecuteInstruction(opCode, cpu)
+		opCode := cpu.bus.Read(cpu.pc)
+		err := instructions.ExecuteInstruction(opCode, cpu)
 
-		//// Get instruction
-		//instruction, opCode, ok := cpu.getInstruction(cpu.pc)
-		//
-		//// Unknown opcode - quit
-		//if !ok {
-		//	// TODO: Think what to do here
-		//	return
-		//}
-		//
-		//// Find correct addressing mode for this op code
-		//addrModeId := instruction.opCodes[opCode].addrMode
-		//
-		//// Set new cycles needed for this instruction
-		//cpu.cyclesLeft = instruction.opCodes[opCode].cycles
-		//
-		//// Execute addressing mode
-		//// TODO: Think what to do here
-		//addrMode, _ := addressing.GetAddressingById(addrModeId)
-		//address, addCycleAddr := addrMode.CalculateAddress(cpu.pc, cpu.x, cpu.y, func(addr uint16) uint8 {
-		//	return cpu.bus.Read(addr)
-		//})
-		//
-		//// Increment program counter
-		//// TODO: this is wrong on jumps -> noo need to add pc
-		//cpu.pc += uint16(addrMode.Size)
-		//
-		//// Execute instruction
-		//addCycleHandler := instruction.handler(cpu, address, opCode, addrModeId)
-		//
-		//// We might need to add additional cycle
-		//if addCycleAddr && addCycleHandler {
-		//	cpu.cyclesLeft++
-		//}
+		if err != nil {
+			// TODO: what to do now?
+			panic(err)
+		}
 	}
 
 	// One cycle done
@@ -148,36 +201,14 @@ func (cpu *CPU) ScheduleNMI() {
 	cpu.isNMIScheduled = true
 }
 
-func (cpu *CPU) pushToStack(data uint8) {
-	cpu.bus.Write(0x0100+uint16(cpu.sp), data)
-	cpu.sp--
-}
-
-func (cpu *CPU) pushToStack16(d uint16) {
-	cpu.pushToStack(uint8((d >> 8) & 0x00FF))
-	cpu.pushToStack(uint8(d & 0x00FF))
-}
-
-func (cpu *CPU) pullFromStack() uint8 {
-	cpu.sp++
-	return cpu.bus.Read(0x0100 + uint16(cpu.sp))
-}
-
-func (cpu *CPU) pullFromStack16() uint16 {
-	low := uint16(cpu.pullFromStack())
-	high := uint16(cpu.pullFromStack())
-
-	return (high << 8) | low
-}
-
 func (cpu *CPU) handleInterrupt(addr uint16) {
 	// Push program counter to stack
-	cpu.pushToStack16(cpu.pc)
+	cpu.PushToStack16(cpu.pc)
 
 	// Push status to stack
 	// https://wiki.nesdev.com/w/index.php/Status_flags
 	// Set 5 bit and unset 4 bit
-	cpu.pushToStack(cpu.p.GetByte()&0b11001111 | 0b00100000)
+	cpu.PushToStack(cpu.p.GetByte()&0b11001111 | 0b00100000)
 
 	// Disable interrupts
 	cpu.p.Set(flags.I, true)
@@ -199,69 +230,33 @@ type CPUDebugInfo struct {
 	P  uint8
 }
 
-//func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
-//	return CPUDebugInfo{
-//		PC: cpu.pc,
-//		SP: cpu.sp,
-//		A:  cpu.a,
-//		X:  cpu.x,
-//		Y:  cpu.y,
-//		P:  cpu.p,
-//	}
-//}
-
-type DisassembleInfo struct {
-	OpCode          uint8
-	InstructionName string
-	Operand         string
-	AddressingName  string
-	Size            uint8
+func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
+	return CPUDebugInfo{
+		PC: cpu.pc,
+		SP: cpu.sp,
+		A:  cpu.a,
+		X:  cpu.x,
+		Y:  cpu.y,
+		P:  cpu.p.GetByte(),
+	}
 }
 
-func (cpu *CPU) Disassemble(addr uint16) (*DisassembleInfo, bool) {
-	info := DisassembleInfo{}
-	//info.OpCode = cpu.bus.ReadDebug(addr)
-	//inst, ok := cpu.instLookup[info.OpCode]
-	//
-	//if !ok {
-	//	return nil, false
-	//}
-	//
-	//info.InstructionName = inst.name
-	//
-	//// TODO: handle errors here
-	//addrMode, _ := addressing.GetAddressingById(inst.opCodes[info.OpCode].addrMode)
+func (cpu *CPU) Disassemble(addr uint16, state instructions.CPUState) (*instructions.InstructionDebugInfo, error) {
+	opCode := cpu.bus.ReadDebug(addr)
+	info, err := instructions.GetInstructionDebugInfo(opCode, state)
+
+	return info, err
+
+	// TODO: handle errors here
 	//address, _ := addrMode.CalculateAddress(addr, cpu.x, cpu.y, func(addr uint16) uint8 {
 	//	return cpu.bus.ReadDebug(addr)
 	//})
 	//info.Operand = addrMode.Format(address)
 	//info.AddressingName = addrMode.Name
 	//info.Size = addrMode.Size
-
-	return &info, true
-
-	//info.instructionName = inst.name
-
-	//
-	//for i := 0; i < 10; i++ {
-	//	opCode :=
-	//	inst, ok := cpu.instLookup[opCode]
-	//	if !ok {
-	//		return nil, false
-	//	}
-	//
-	//
-	//
-	//	buf.Truncate(0)
-	//	fmt.Fprintf(w, "$%04X %s %s\t{%s}", addr, inst.name, addrMode.format(address), addrMode.name)
-	//	w.Flush()
-	//	code[i] = buf.String()
-	//	addr += uint16(addrMode.size)
-	//}
-	//
-	//return code, true
 }
 
-func (cpu *CPU) Clone(addr uint16) CPU {
-	return *cpu
+func (cpu *CPU) Clone() CPU {
+	cpu2 := *cpu
+	return cpu2
 }

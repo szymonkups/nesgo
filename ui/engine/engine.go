@@ -193,45 +193,8 @@ func (ui *UIEngine) DrawText(text string, x int32, y int32, r, g, b, a uint8) (e
 		letterDstRect.Y = y
 
 		ui.renderer.Copy(tex, &letterSrcRect, &letterDstRect)
-
 	}
 
-	//	surface, err := ui.font.RenderUTF8Blended(text, sdl.Color{
-	//		R: r,
-	//		G: g,
-	//		B: b,
-	//		A: a,
-	//	})
-	//
-	//	if err != nil {
-	//		return err
-	//	}
-	//
-	//	defer surface.Free()
-	//
-	//	tex, err := ui.renderer.CreateTextureFromSurface(surface)
-	//
-	//	if err != nil {
-	//		return err
-	//	}
-	//
-	//	defer tex.Destroy()
-	//
-	//	tex.SetAlphaMod(a)
-	//
-	//	dst := sdl.Rect{
-	//		X: x,
-	//		Y: y,
-	//		W: surface.ClipRect.W,
-	//		H: surface.ClipRect.H,
-	//	}
-	//
-	//	err = ui.renderer.Copy(tex, &surface.ClipRect, &dst)
-	//
-	//	if err != nil {
-	//		return err
-	//	}
-	//
 	return nil
 }
 

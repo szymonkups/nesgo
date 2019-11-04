@@ -17,9 +17,42 @@ func init() {
 	}
 }
 
+type InstructionDebugInfo struct {
+	InstructionName string
+	OpCode          uint8
+	AddressingName  string
+	Size            uint8
+	Operand         string
+}
+
+func GetInstructionDebugInfo(opCode uint8, cpu CPUState) (*InstructionDebugInfo, error) {
+	instruction, ok := GetInstructionByOpCode(opCode)
+
+	if !ok {
+		return nil, fmt.Errorf("cannot find Instruction by opcode $%02X", opCode)
+	}
+
+	addrModeId := instruction.AddrByOpCode[opCode].AddrMode
+	addrMode, ok := addressing.GetAddressingById(addrModeId)
+
+	if !ok {
+		return nil, fmt.Errorf("cannot find addressing mode with id %d for opcode $%02X", addrModeId, opCode)
+	}
+
+	addr, _ := addrMode.CalculateAddress(cpu.GetPC(), cpu.GetX(), cpu.GetY(), cpu.Read)
+
+	info := new(InstructionDebugInfo)
+	info.InstructionName = instruction.Name
+	info.OpCode = opCode
+	info.AddressingName = addrMode.Name
+	info.Size = addrMode.Size
+	info.Operand = addrMode.Format(addr)
+	return info, nil
+}
+
 func ExecuteInstruction(opCode uint8, cpu CPUState) error {
 	// Find instruction by opcode
-	instruction, ok := instLookup[opCode]
+	instruction, ok := GetInstructionByOpCode(opCode)
 
 	if !ok {
 		return fmt.Errorf("cannot find Instruction by opcode $%02X", opCode)
@@ -66,6 +99,12 @@ func GetInstructionByName(name string) (*Instruction, bool) {
 	}
 
 	return nil, false
+}
+
+func GetInstructionByOpCode(op uint8) (*Instruction, bool) {
+	inst, ok := instLookup[op]
+
+	return inst, ok
 }
 
 type CPUState interface {

@@ -30,7 +30,7 @@ func main() {
 	ppuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
 	ppuBus.ConnectDevice(vRam)
 
-	err := crt.LoadFile("/home/szymon/Downloads/nes/nestest.nes")
+	err := crt.LoadFile("/home/szymon/Downloads/nes/baseball.nes")
 
 	if err != nil {
 		fmt.Printf("Could not load a file: %s.\n", err)
@@ -50,6 +50,7 @@ func main() {
 
 	cycles := 0
 
+	go draw(gui)
 	running := true
 	for running {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -88,7 +89,7 @@ func main() {
 		if cycles%3 == 0 {
 			cpu.Clock()
 		}
-		cycles++
+		//cycles++
 		//}
 
 		if ppu.NMI {
@@ -96,12 +97,19 @@ func main() {
 			cpu.ScheduleNMI()
 		}
 
-		err = gui.DrawDebugger()
+		//err = gui.DrawDebugger()
 
 		if err != nil {
 			panic(err)
 		}
 
-		//sdl.Delay(1000 / 10)
+		//sdl.Delay(1000 / 60)
+	}
+}
+
+func draw(gui *ui.UI) {
+	for {
+		gui.DrawDebugger()
+		sdl.Delay(1000 / 60)
 	}
 }
