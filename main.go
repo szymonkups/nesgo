@@ -80,7 +80,7 @@ func main() {
 	ppuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
 	ppuBus.ConnectDevice(vRam)
 
-	err := crt.LoadFile("/home/szymon/Downloads/nes/nestest.nes")
+	err := crt.LoadFile("/home/szymon/Downloads/nes/smb.nes")
 
 	if err != nil {
 		fmt.Printf("Could not load a file: %s.\n", err)
@@ -96,19 +96,29 @@ func main() {
 		panic(err)
 	}
 
-	running := true
+	messages := make(chan string)
 	mux := new(sync.Mutex)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go cpuLoop(&running, &wg, cpu, ppu)
-	sdlLoop(&running, mux, gui)
+	go cpuLoop(messages, &wg, cpu, ppu)
+	sdlLoop(messages, mux, gui)
 	wg.Wait()
 }
 
-func cpuLoop(running *bool, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.PPU) {
+func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.PPU) {
 	cycles := 0
+	running := true
 
-	for *running {
+	for running {
+		select {
+		case msg := <-messages:
+			if msg == "quit" {
+				running = false
+			}
+
+		default:
+		}
+
 		ppu.Clock()
 		if cycles%3 == 0 {
 			cpu.Clock()
@@ -119,27 +129,26 @@ func cpuLoop(running *bool, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.PPU) {
 	wg.Done()
 }
 
-func sdlLoop(running *bool, mux *sync.Mutex, ui *ui.UI) {
-	stop := func() {
-		mux.Lock()
-		*running = false
-		mux.Unlock()
-	}
+func sdlLoop(messages chan string, mux *sync.Mutex, ui *ui.UI) {
+	running := true
 
-	for *running {
+	for running {
+
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch t := event.(type) {
 			case *sdl.QuitEvent:
-				stop()
+				running = false
 
 			case *sdl.KeyboardEvent:
 				if t.GetType() == sdl.KEYUP && t.Keysym.Sym == sdl.K_ESCAPE {
-					stop()
+					running = false
 				}
 			}
 		}
-		ui.DrawDebugger()
 
-		sdl.Delay(1000 / 100)
+		ui.DrawDebugger()
+		sdl.Delay(1000 / 200)
 	}
+
+	messages <- "quit"
 }
