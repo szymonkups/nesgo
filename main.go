@@ -6,7 +6,57 @@ import (
 	"github.com/szymonkups/nesgo/ui"
 	"github.com/veandco/go-sdl2/sdl"
 	"os"
+	"sync"
 )
+
+//var runningMutex sync.Mutex
+
+//func run() int {
+//
+//	//defer gui.Destroy()
+//
+//	cycles := 0
+//	running := true
+//
+//	for running {
+//		sdl.Do(func() {
+//			stop := func() {
+//				runningMutex.Lock()
+//				running = false
+//				runningMutex.Unlock()
+//			}
+//
+//		})
+//
+//		ppu.Clock()
+//		if cycles%3 == 0 {
+//			cpu.Clock()
+//		}
+//		cycles++
+//
+//		if ppu.NMI {
+//			ppu.NMI = false
+//			cpu.ScheduleNMI()
+//		}
+//
+//		if err != nil {
+//			panic(err)
+//		}
+//
+//		go func() {
+//			err = gui.DrawDebugger()
+//
+//			if err != nil {
+//				panic(err)
+//			}
+//
+//			sdl.Delay(1000 / 60)
+//		}()
+//
+//	}
+//
+//	return 0
+//}
 
 func main() {
 	// Create two main buses:
@@ -30,7 +80,7 @@ func main() {
 	ppuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
 	ppuBus.ConnectDevice(vRam)
 
-	err := crt.LoadFile("/home/szymon/Downloads/nes/baseball.nes")
+	err := crt.LoadFile("/home/szymon/Downloads/nes/nestest.nes")
 
 	if err != nil {
 		fmt.Printf("Could not load a file: %s.\n", err)
@@ -38,78 +88,58 @@ func main() {
 	}
 
 	cpu := core.NewCPU(cpuBus)
-
 	gui := new(ui.UI)
+
 	err = gui.Init(cpu, ppu, crt)
 
 	if err != nil {
 		panic(err)
 	}
 
-	defer gui.Destroy()
+	running := true
+	mux := new(sync.Mutex)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go cpuLoop(&running, &wg, cpu, ppu)
+	sdlLoop(&running, mux, gui)
+	wg.Wait()
+}
 
+func cpuLoop(running *bool, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.PPU) {
 	cycles := 0
 
-	go draw(gui)
-	running := true
-	for running {
-		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-			switch t := event.(type) {
-			case *sdl.QuitEvent:
-				running = false
-				break
-
-			case *sdl.KeyboardEvent:
-				// Quit on ESC
-				if t.GetType() == sdl.KEYUP && t.Keysym.Sym == sdl.K_ESCAPE {
-					running = false
-				}
-
-				// Step on enter
-				if t.GetType() == sdl.KEYDOWN && t.Keysym.Sym == sdl.K_RETURN {
-					ppu.Clock()
-					if cycles%3 == 0 {
-						cpu.Clock()
-					}
-
-					cycles++
-				}
-
-				// R key - reset
-				if t.GetType() == sdl.KEYDOWN && t.Keysym.Sym == sdl.K_r {
-					cpu.Reset()
-				}
-
-				break
-			}
-		}
-
-		//for cpu.GetCyclesLeft()*3 > 0 {
+	for *running {
 		ppu.Clock()
 		if cycles%3 == 0 {
 			cpu.Clock()
 		}
-		//cycles++
-		//}
-
-		if ppu.NMI {
-			ppu.NMI = false
-			cpu.ScheduleNMI()
-		}
-
-		//err = gui.DrawDebugger()
-
-		if err != nil {
-			panic(err)
-		}
-
-		//sdl.Delay(1000 / 60)
+		cycles++
 	}
+
+	wg.Done()
 }
 
-func draw(gui *ui.UI) {
-	for {
-		gui.DrawDebugger()
-		sdl.Delay(1000 / 60)
+func sdlLoop(running *bool, mux *sync.Mutex, ui *ui.UI) {
+	stop := func() {
+		mux.Lock()
+		*running = false
+		mux.Unlock()
+	}
+
+	for *running {
+		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+			switch t := event.(type) {
+			case *sdl.QuitEvent:
+				stop()
+
+			case *sdl.KeyboardEvent:
+				if t.GetType() == sdl.KEYUP && t.Keysym.Sym == sdl.K_ESCAPE {
+					stop()
+				}
+			}
+		}
+		ui.DrawDebugger()
+
+		sdl.Delay(1000 / 100)
 	}
 }

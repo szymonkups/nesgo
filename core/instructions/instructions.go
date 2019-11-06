@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/szymonkups/nesgo/core/addressing"
 	"github.com/szymonkups/nesgo/core/flags"
+	"strings"
 )
 
 var instLookup = map[uint8]*Instruction{}
@@ -25,7 +26,7 @@ type InstructionDebugInfo struct {
 	Operand         string
 }
 
-func GetInstructionDebugInfo(opCode uint8, cpu CPUState) (*InstructionDebugInfo, error) {
+func GetInstructionDebugInfo(opCode uint8, cpu CPUInterface) (*InstructionDebugInfo, error) {
 	instruction, ok := GetInstructionByOpCode(opCode)
 
 	if !ok {
@@ -50,7 +51,7 @@ func GetInstructionDebugInfo(opCode uint8, cpu CPUState) (*InstructionDebugInfo,
 	return info, nil
 }
 
-func ExecuteInstruction(opCode uint8, cpu CPUState) error {
+func ExecuteInstruction(opCode uint8, cpu CPUInterface) error {
 	// Find instruction by opcode
 	instruction, ok := GetInstructionByOpCode(opCode)
 
@@ -78,7 +79,7 @@ func ExecuteInstruction(opCode uint8, cpu CPUState) error {
 	cpu.SetPC(cpu.GetPC() + uint16(addrMode.Size))
 
 	// Execute instruction
-	addCycleInst := instruction.Handler(cpu, addr, opCode, addrModeId)
+	addCycleInst := instruction.Handler(cpu, addr, addrModeId)
 
 	// Add cycles needed by this instruction
 	cpu.AddCycles(cycles)
@@ -92,6 +93,7 @@ func ExecuteInstruction(opCode uint8, cpu CPUState) error {
 }
 
 func GetInstructionByName(name string) (*Instruction, bool) {
+	name = strings.ToUpper(name)
 	for _, inst := range instructions {
 		if inst.Name == name {
 			return inst, true
@@ -107,7 +109,7 @@ func GetInstructionByOpCode(op uint8) (*Instruction, bool) {
 	return inst, ok
 }
 
-type CPUState interface {
+type CPUInterface interface {
 	// Program Counter
 	GetPC() uint16
 	SetPC(uint16) uint16
@@ -183,7 +185,7 @@ type opCodesMap map[uint8]struct {
 // We pass CPU instance, absolute address calculated by correct addressing mode,
 // actual op code (as same Instruction can have different op codes depending on
 // addressing mode) and addressing mode itself.
-type instructionHandler func(cpuState CPUState, addr uint16, opCode uint8, addrMode int) bool
+type instructionHandler func(cpuState CPUInterface, addr uint16, addrMode int) bool
 
 // *****************************************************************************
 // Instructions
@@ -202,7 +204,7 @@ var adc = Instruction{
 		0x61: {addressing.IndirectXAddressing, 6},
 		0x71: {addressing.IndirectYAddressing, 5},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		acc := cpu.GetA()
 		data := cpu.Read(addr)
 		carry := uint8(0)
@@ -234,7 +236,7 @@ var sbc = Instruction{
 		0xE1: {addressing.IndirectXAddressing, 6},
 		0xF1: {addressing.IndirectYAddressing, 5},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		acc := cpu.GetA()
 		data := cpu.Read(addr)
 		carry := uint8(0)
@@ -263,7 +265,7 @@ var asl = Instruction{
 		0x0E: {addressing.AbsoluteAddressing, 6},
 		0x1E: {addressing.AbsoluteXAddressing, 7},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		data := cpu.Read(addr)
 		var res16 = uint16(data) << 1
 		flg := cpu.GetStatusFlags()
@@ -297,7 +299,7 @@ var and = Instruction{
 		0x21: {addressing.IndirectXAddressing, 6},
 		0x31: {addressing.IndirectYAddressing, 5},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		data := cpu.Read(addr)
 		newAcc := cpu.SetA(cpu.GetA() & data)
 		cpu.GetStatusFlags().SetZN(newAcc)
@@ -312,7 +314,7 @@ var bcc = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x90: {addressing.RelativeAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		flg := cpu.GetStatusFlags()
 		if !flg.Get(flags.C) {
 			branchHandler(cpu, addr)
@@ -328,7 +330,7 @@ var bcs = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xB0: {addressing.RelativeAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		flg := cpu.GetStatusFlags()
 		if flg.Get(flags.C) {
 			branchHandler(cpu, addr)
@@ -344,7 +346,7 @@ var beq = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xF0: {addressing.RelativeAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		flg := cpu.GetStatusFlags()
 
 		if flg.Get(flags.Z) {
@@ -361,7 +363,7 @@ var bmi = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x30: {addressing.RelativeAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		flg := cpu.GetStatusFlags()
 		if flg.Get(flags.N) {
 			branchHandler(cpu, addr)
@@ -377,7 +379,7 @@ var bne = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xD0: {addressing.RelativeAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		flg := cpu.GetStatusFlags()
 		if !flg.Get(flags.Z) {
 			branchHandler(cpu, addr)
@@ -393,7 +395,7 @@ var bpl = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x10: {addressing.RelativeAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		flg := cpu.GetStatusFlags()
 		if !flg.Get(flags.N) {
 			branchHandler(cpu, addr)
@@ -409,7 +411,7 @@ var bvc = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x50: {addressing.RelativeAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		flg := cpu.GetStatusFlags()
 		if !flg.Get(flags.V) {
 			branchHandler(cpu, addr)
@@ -425,7 +427,7 @@ var bvs = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x70: {addressing.RelativeAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		flg := cpu.GetStatusFlags()
 
 		if flg.Get(flags.V) {
@@ -436,7 +438,7 @@ var bvs = Instruction{
 	},
 }
 
-func branchHandler(cpu CPUState, addr uint16) {
+func branchHandler(cpu CPUInterface, addr uint16) {
 	cpu.AddCycles(1)
 
 	// Page might be crossed - add one cycle if that happens
@@ -454,7 +456,7 @@ var bit = Instruction{
 		0x24: {addressing.ZeroPageAddressing, 3},
 		0x2C: {addressing.AbsoluteAddressing, 4},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		data := cpu.Read(addr)
 		tmp := data & cpu.GetA()
 		flg := cpu.GetStatusFlags()
@@ -473,7 +475,7 @@ var brk = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x00: {addressing.ImpliedAddressing, 7},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		// Padding byte
 		// http://nesdev.com/the%20%27B%27%20flag%20&%20BRK%20instruction.txt
 		cpu.SetPC(cpu.GetPC() + 1)
@@ -503,7 +505,7 @@ var inx = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xE8: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newX := cpu.SetX(cpu.GetX() + 1)
 		cpu.GetStatusFlags().SetZN(newX)
 
@@ -517,7 +519,7 @@ var iny = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xC8: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newY := cpu.SetY(cpu.GetY() + 1)
 		cpu.GetStatusFlags().SetZN(newY)
 
@@ -534,7 +536,7 @@ var inc = Instruction{
 		0xEE: {addressing.AbsoluteAddressing, 6},
 		0xFE: {addressing.AbsoluteXAddressing, 7},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		data := cpu.Read(addr)
 		data++
 		cpu.Write(addr, data)
@@ -550,7 +552,7 @@ var clc = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x18: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.GetStatusFlags().Set(flags.C, false)
 
 		return false
@@ -563,7 +565,7 @@ var cld = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xD8: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.GetStatusFlags().Set(flags.D, false)
 
 		return false
@@ -576,7 +578,7 @@ var cli = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x58: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.GetStatusFlags().Set(flags.I, false)
 
 		return false
@@ -589,7 +591,7 @@ var clv = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xB8: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.GetStatusFlags().Set(flags.V, false)
 
 		return false
@@ -609,7 +611,7 @@ var cmp = Instruction{
 		0xC1: {addressing.IndirectXAddressing, 6},
 		0xD1: {addressing.IndirectYAddressing, 5},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		compareHandler(cpu, cpu.GetA(), addr)
 
 		return true
@@ -624,7 +626,7 @@ var cpx = Instruction{
 		0xE4: {addressing.ZeroPageAddressing, 3},
 		0xEC: {addressing.AbsoluteAddressing, 4},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		compareHandler(cpu, cpu.GetX(), addr)
 
 		return false
@@ -639,14 +641,14 @@ var cpy = Instruction{
 		0xC4: {addressing.ZeroPageAddressing, 3},
 		0xCC: {addressing.AbsoluteAddressing, 4},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		compareHandler(cpu, cpu.GetY(), addr)
 
 		return false
 	},
 }
 
-func compareHandler(cpu CPUState, a byte, addr uint16) {
+func compareHandler(cpu CPUInterface, a byte, addr uint16) {
 	data := cpu.Read(addr)
 	diff := a - data
 
@@ -664,7 +666,7 @@ var dec = Instruction{
 		0xCE: {addressing.AbsoluteAddressing, 6},
 		0xDE: {addressing.AbsoluteXAddressing, 7},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		data := cpu.Read(addr)
 		data--
 		cpu.Write(addr, data)
@@ -680,7 +682,7 @@ var dex = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xCA: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newX := cpu.SetX(cpu.GetX() - 1)
 		cpu.GetStatusFlags().SetZN(newX)
 
@@ -694,7 +696,7 @@ var dey = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x88: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newY := cpu.SetY(cpu.GetY() - 1)
 
 		flg := cpu.GetStatusFlags()
@@ -718,7 +720,7 @@ var eor = Instruction{
 		0x41: {addressing.IndirectXAddressing, 6},
 		0x51: {addressing.IndirectYAddressing, 5},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		data := cpu.Read(addr)
 		newA := cpu.SetA(cpu.GetA() ^ data)
 		cpu.GetStatusFlags().SetZN(newA)
@@ -733,7 +735,7 @@ var pha = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x48: {addressing.ImpliedAddressing, 3},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.PushToStack(cpu.GetA())
 		return false
 	},
@@ -745,7 +747,7 @@ var php = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x08: {addressing.ImpliedAddressing, 3},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		// Push processor status flags to stack
 		// https://wiki.nesdev.com/w/index.php/Status_flags - set 4 and 5 bit before pushing
 		cpu.PushToStack(cpu.GetStatusFlags().GetByte() | 0b00110000)
@@ -759,7 +761,7 @@ var pla = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x68: {addressing.ImpliedAddressing, 4},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newA := cpu.SetA(cpu.PullFromStack())
 		cpu.GetStatusFlags().SetZN(newA)
 
@@ -773,7 +775,7 @@ var plp = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x28: {addressing.ImpliedAddressing, 4},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		// https://wiki.nesdev.com/w/index.php/Status_flags - ignore 4 and 5 bit - make sure 5 is set in p register
 		cpu.GetStatusFlags().SetByte(cpu.PullFromStack()&0b11001111 | 0b00100000)
 
@@ -794,7 +796,7 @@ var jmp = Instruction{
 		0x4C: {addressing.AbsoluteAddressing, 3},
 		0x6C: {addressing.IndirectAddressing, 5},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.SetPC(addr)
 		return false
 	},
@@ -806,7 +808,7 @@ var jsr = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x20: {addressing.AbsoluteAddressing, 6},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.PushToStack16(cpu.GetPC() - 1)
 		cpu.SetPC(addr)
 
@@ -827,7 +829,7 @@ var lda = Instruction{
 		0xA1: {addressing.IndirectXAddressing, 6},
 		0xB1: {addressing.IndirectYAddressing, 5},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newA := cpu.SetA(cpu.Read(addr))
 		cpu.GetStatusFlags().SetZN(newA)
 
@@ -845,7 +847,7 @@ var ldx = Instruction{
 		0xAE: {addressing.AbsoluteAddressing, 4},
 		0xBE: {addressing.AbsoluteYAddressing, 4},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newX := cpu.SetX(cpu.Read(addr))
 		cpu.GetStatusFlags().SetZN(newX)
 
@@ -863,7 +865,7 @@ var ldy = Instruction{
 		0xAC: {addressing.AbsoluteAddressing, 4},
 		0xBC: {addressing.AbsoluteXAddressing, 4},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newY := cpu.SetY(cpu.Read(addr))
 		cpu.GetStatusFlags().SetZN(newY)
 
@@ -881,7 +883,7 @@ var lsr = Instruction{
 		0x4E: {addressing.AbsoluteAddressing, 6},
 		0x5E: {addressing.AbsoluteXAddressing, 7},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		var data uint8
 
 		// Get correct data
@@ -914,7 +916,7 @@ var nop = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xEA: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		return false
 	},
 }
@@ -932,7 +934,7 @@ var ora = Instruction{
 		0x01: {addressing.IndirectXAddressing, 6},
 		0x11: {addressing.IndirectYAddressing, 5},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newA := cpu.SetA(cpu.GetA() | cpu.Read(addr))
 		cpu.GetStatusFlags().SetZN(newA)
 
@@ -950,7 +952,7 @@ var rol = Instruction{
 		0x2E: {addressing.AbsoluteAddressing, 6},
 		0x3E: {addressing.AbsoluteXAddressing, 7},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		var data uint8
 
 		if addrMode == addressing.AccumulatorAddressing {
@@ -990,7 +992,7 @@ var ror = Instruction{
 		0x6E: {addressing.AbsoluteAddressing, 6},
 		0x7E: {addressing.AbsoluteXAddressing, 7},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		var data uint8
 
 		if addrMode == addressing.AccumulatorAddressing {
@@ -1026,7 +1028,7 @@ var rti = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x40: {addressing.ImpliedAddressing, 6},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		// https://wiki.nesdev.com/w/index.php/Status_flags - ignore 4 and 5 bit - make sure 5 is set in p register
 		cpu.GetStatusFlags().SetByte(cpu.PullFromStack()&0b11001111 | 0b00100000)
 		cpu.SetPC(cpu.PullFromStack16())
@@ -1041,7 +1043,7 @@ var rts = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x60: {addressing.ImpliedAddressing, 6},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.SetPC(cpu.PullFromStack16() + 1)
 
 		return false
@@ -1054,7 +1056,7 @@ var sec = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x38: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.GetStatusFlags().Set(flags.C, true)
 
 		return false
@@ -1067,7 +1069,7 @@ var sed = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xF8: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.GetStatusFlags().Set(flags.D, true)
 
 		return false
@@ -1080,7 +1082,7 @@ var sei = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x78: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.GetStatusFlags().Set(flags.I, true)
 
 		return false
@@ -1099,7 +1101,7 @@ var sta = Instruction{
 		0x81: {addressing.IndirectXAddressing, 6},
 		0x91: {addressing.IndirectYAddressing, 6},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.Write(addr, cpu.GetA())
 
 		return false
@@ -1114,7 +1116,7 @@ var stx = Instruction{
 		0x96: {addressing.ZeroPageYAddressing, 4},
 		0x8E: {addressing.AbsoluteAddressing, 4},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.Write(addr, cpu.GetX())
 
 		return false
@@ -1129,7 +1131,7 @@ var sty = Instruction{
 		0x94: {addressing.ZeroPageXAddressing, 4},
 		0x8C: {addressing.AbsoluteAddressing, 4},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.Write(addr, cpu.GetY())
 
 		return false
@@ -1142,7 +1144,7 @@ var tax = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xAA: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newX := cpu.SetX(cpu.GetA())
 		cpu.GetStatusFlags().SetZN(newX)
 
@@ -1156,7 +1158,7 @@ var tay = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xA8: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newY := cpu.SetY(cpu.GetA())
 		cpu.GetStatusFlags().SetZN(newY)
 
@@ -1170,7 +1172,7 @@ var tsx = Instruction{
 	AddrByOpCode: opCodesMap{
 		0xBA: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newX := cpu.SetX(cpu.GetSP())
 		cpu.GetStatusFlags().SetZN(newX)
 
@@ -1184,7 +1186,7 @@ var txa = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x8A: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newA := cpu.SetA(cpu.GetX())
 		cpu.GetStatusFlags().SetZN(newA)
 
@@ -1198,7 +1200,7 @@ var txs = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x9A: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		cpu.SetSP(cpu.GetX())
 
 		return false
@@ -1211,7 +1213,7 @@ var tya = Instruction{
 	AddrByOpCode: opCodesMap{
 		0x98: {addressing.ImpliedAddressing, 2},
 	},
-	Handler: func(cpu CPUState, addr uint16, opCode uint8, addrMode int) bool {
+	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
 		newA := cpu.SetA(cpu.GetY())
 		cpu.GetStatusFlags().SetZN(newA)
 

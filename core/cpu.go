@@ -241,7 +241,7 @@ func (cpu *CPU) GetDebugInfo() CPUDebugInfo {
 	}
 }
 
-func (cpu *CPU) Disassemble(addr uint16, state instructions.CPUState) (*instructions.InstructionDebugInfo, error) {
+func (cpu *CPU) Disassemble(addr uint16, state instructions.CPUInterface) (*instructions.InstructionDebugInfo, error) {
 	opCode := cpu.bus.ReadDebug(addr)
 	info, err := instructions.GetInstructionDebugInfo(opCode, state)
 
