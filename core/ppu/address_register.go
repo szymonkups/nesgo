@@ -7,7 +7,7 @@ type AddressRegister struct {
 
 func (addr *AddressRegister) Write(value uint8) {
 	if !addr.latch {
-		addr.address = (addr.address & 0xFF00) | uint16(value)<<8
+		addr.address = (uint16(value&0x3F) << 8) | (addr.address & 0x00FF)
 		addr.latch = true
 	} else {
 		addr.address = (addr.address & 0xFF00) | uint16(value)

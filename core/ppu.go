@@ -59,8 +59,9 @@ func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
 			return 0x00, true
 
 		case 0x02:
-			toReturn := (ppu.statusRegister.Read() & 0xE0) | (ppu.dataBuffer & 0x1F)
 			ppu.statusRegister.SetVBlank(true)
+			toReturn := (ppu.statusRegister.Read() & 0xE0) | (ppu.dataBuffer & 0x1F)
+			ppu.statusRegister.SetVBlank(false)
 			ppu.addrRegister.ResetLatch()
 			return toReturn, true
 
@@ -198,7 +199,7 @@ func (ppu *PPU) GetUniversalBGColor() *PPUColor {
 }
 
 func (ppu *PPU) GetColorFromPalette(palette, pixel uint8) *PPUColor {
-	data := ppu.bus.Read(0x3F00 + uint16(palette)*4 + uint16(pixel))
+	data := ppu.bus.Read(0x3F00 + (uint16(palette) << 2) + uint16(pixel)&0x3F)
 
 	if data >= 0x40 {
 		fmt.Printf("Trying to access palette index out of range: %d.\n", data)
@@ -206,6 +207,30 @@ func (ppu *PPU) GetColorFromPalette(palette, pixel uint8) *PPUColor {
 	}
 
 	return colorTable[data]
+}
+
+type setPixel func(x, y uint16, pixel uint8)
+
+func (ppu *PPU) DrawPatternTable(i uint16, draw setPixel) {
+	for tileY := uint16(0); tileY < 16; tileY++ {
+		for tileX := uint16(0); tileX < 16; tileX++ {
+			// Convert x,y to linear offset
+			offset := tileY*256 + tileX*16
+
+			for row := uint16(0); row < 8; row++ {
+				tileLSB := ppu.bus.ReadDebug(i*0x1000 + offset + row)
+				tileMSB := ppu.bus.ReadDebug(i*0x1000 + offset + row + 0x0008)
+
+				for col := uint16(0); col < 8; col++ {
+					pixel := (tileLSB & 0x01) + (tileMSB & 0x01)
+
+					tileLSB >>= 1
+					tileMSB >>= 1
+					draw(tileX*8+(7-col), tileY*8+row, pixel)
+				}
+			}
+		}
+	}
 }
 
 var colorTable = [0x40]*PPUColor{

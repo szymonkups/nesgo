@@ -9,55 +9,6 @@ import (
 	"sync"
 )
 
-//var runningMutex sync.Mutex
-
-//func run() int {
-//
-//	//defer gui.Destroy()
-//
-//	cycles := 0
-//	running := true
-//
-//	for running {
-//		sdl.Do(func() {
-//			stop := func() {
-//				runningMutex.Lock()
-//				running = false
-//				runningMutex.Unlock()
-//			}
-//
-//		})
-//
-//		ppu.Clock()
-//		if cycles%3 == 0 {
-//			cpu.Clock()
-//		}
-//		cycles++
-//
-//		if ppu.NMI {
-//			ppu.NMI = false
-//			cpu.ScheduleNMI()
-//		}
-//
-//		if err != nil {
-//			panic(err)
-//		}
-//
-//		go func() {
-//			err = gui.DrawDebugger()
-//
-//			if err != nil {
-//				panic(err)
-//			}
-//
-//			sdl.Delay(1000 / 60)
-//		}()
-//
-//	}
-//
-//	return 0
-//}
-
 func main() {
 	// Create two main buses:
 	// 1. CPU bus where RAM, ppu and cartridge are connected and used by CPU,
@@ -108,6 +59,20 @@ func main() {
 func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.PPU) {
 	cycles := 0
 	running := true
+	stepMode := true
+
+	tick := func() {
+		ppu.Clock()
+		if cycles%3 == 0 {
+			cpu.Clock()
+		}
+		cycles++
+
+		if ppu.NMI {
+			ppu.NMI = false
+			cpu.ScheduleNMI()
+		}
+	}
 
 	for running {
 		select {
@@ -116,14 +81,26 @@ func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.
 				running = false
 			}
 
+			if msg == "step toggle" {
+				stepMode = !stepMode
+			}
+
+			if msg == "step" {
+				for {
+					tick()
+					if cpu.GetCyclesLeft() == 0 && cycles%3 == 0 {
+						break
+					}
+				}
+			}
+
 		default:
 		}
 
-		ppu.Clock()
-		if cycles%3 == 0 {
-			cpu.Clock()
+		if !stepMode {
+			tick()
 		}
-		cycles++
+
 	}
 
 	wg.Done()
@@ -140,8 +117,17 @@ func sdlLoop(messages chan string, mux *sync.Mutex, ui *ui.UI) {
 				running = false
 
 			case *sdl.KeyboardEvent:
-				if t.GetType() == sdl.KEYUP && t.Keysym.Sym == sdl.K_ESCAPE {
-					running = false
+				if t.GetType() == sdl.KEYDOWN {
+					switch t.Keysym.Sym {
+					case sdl.K_ESCAPE:
+						running = false
+
+					case sdl.K_RETURN:
+						messages <- "step"
+
+					case sdl.K_SPACE:
+						messages <- "step toggle"
+					}
 				}
 			}
 		}

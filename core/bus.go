@@ -19,7 +19,7 @@ func NewCPUBus() *bus {
 }
 
 func NewPPUBus() *bus {
-	return &bus{id: "PPU"}
+	return &bus{id: "ppu"}
 }
 
 // ConnectDevice - connects device to the bus

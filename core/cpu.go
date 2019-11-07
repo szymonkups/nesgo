@@ -163,7 +163,6 @@ func (cpu *CPU) AddCycles(c uint8) {
 // Clock - execute single clock cycle
 func (cpu *CPU) Clock() {
 	if cpu.cyclesLeft == 0 {
-
 		// Check for scheduled interrupts
 		if cpu.isNMIScheduled {
 			cpu.handleInterrupt(0xFFFA)

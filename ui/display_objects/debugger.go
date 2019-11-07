@@ -46,20 +46,22 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	// Draw palettes
 	d.drawPalettes(e, 0, 130)
 
-	chr := d.CRT.GetCHRMem()
+	d.PPU.DrawPatternTable(0, func(x, y uint16, pixel uint8) {
+		color := d.PPU.GetColorFromPalette(0, pixel)
+		e.DrawPixel(100+int32(x), 132+int32(y), color.R, color.G, color.B, 0xFF)
+	})
 
-	for y := 0; y < 20; y++ {
-		for x := 0; x < 16; x++ {
-			d.drawSinglePattern(e, x+(y*16), chr, 10+(int32(x)*8), 300+(int32(y)*8))
-		}
-	}
+	d.PPU.DrawPatternTable(1, func(x, y uint16, pixel uint8) {
+		color := d.PPU.GetColorFromPalette(0, pixel)
+		e.DrawPixel(230+int32(x), 132+int32(y), color.R, color.G, color.B, 0xFF)
+	})
 
 	return nil
 }
 
 func (d *Debugger) drawPalettes(e *engine.UIEngine, x, y int32) {
 	e.FillRect(x, y, 98, 9, 0xFF, 0, 0, 0xFF)
-	e.DrawRect(x, y, 300, 100, 0xFF, 0, 0, 0xFF)
+	e.DrawRect(x, y, 360, 132, 0xFF, 0, 0, 0xFF)
 	e.DrawText("PPU", x+1, y+1, 0, 0, 0, 0xFF)
 
 	e.DrawText("BG COLOR", x+1, y+10, 0xFF, 0, 0, 0xFF)
@@ -88,30 +90,6 @@ func (d *Debugger) drawPalette(e *engine.UIEngine, name string, index uint8, x, 
 	e.FillRect(x+70, y+20, 8, 8, cl.R, cl.G, cl.B, 0xFF)
 	cl = d.PPU.GetColorFromPalette(index, 1)
 	e.FillRect(x+60, y+20, 8, 8, cl.R, cl.G, cl.B, 0xFF)
-}
-
-func (d *Debugger) drawSinglePattern(e *engine.UIEngine, n int, chr []uint8, x, y int32) {
-	offset := int32(n * 16)
-
-	for i := 0; i < 8; i++ {
-		first := chr[offset+int32(i)]
-		second := chr[offset+int32(i)+8]
-
-		for j := 0; j < 8; j++ {
-			b1 := getBit(first, 7-uint8(j))
-			b2 := getBit(second, 7-uint8(j))
-
-			clr := (b2 << 1) | b1
-			if clr != 0 {
-				//d.PPU.GetColorFromPalette(0, clr)
-				color := d.PPU.GetColorFromPalette(0, clr)
-
-				e.DrawPixel(x+int32(j), y+int32(i), color.R, color.G, color.B, 0xFF)
-			}
-
-		}
-
-	}
 }
 
 func getBit(i uint8, n uint8) uint8 {
