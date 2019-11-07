@@ -245,14 +245,6 @@ func (cpu *CPU) Disassemble(addr uint16, state instructions.CPUInterface) (*inst
 	info, err := instructions.GetInstructionDebugInfo(opCode, state)
 
 	return info, err
-
-	// TODO: handle errors here
-	//address, _ := addrMode.CalculateAddress(addr, cpu.x, cpu.y, func(addr uint16) uint8 {
-	//	return cpu.bus.ReadDebug(addr)
-	//})
-	//info.Operand = addrMode.Format(address)
-	//info.AddressingName = addrMode.Name
-	//info.Size = addrMode.Size
 }
 
 func (cpu *CPU) Clone() CPU {

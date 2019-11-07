@@ -71,7 +71,7 @@ func (ui *UIEngine) CreateWindow(w int32, h int32, logicalW int32, logicalH int3
 	return nil
 }
 
-const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&:-,.{}[]()"
+const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&:-,.{}[]()_"
 
 func (ui *UIEngine) createFontTexture(r, g, b, a uint8) (*sdl.Texture, error) {
 	// Create font

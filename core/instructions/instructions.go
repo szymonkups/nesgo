@@ -24,6 +24,7 @@ type InstructionDebugInfo struct {
 	AddressingName  string
 	Size            uint8
 	Operand         string
+	AddressInfo     string
 }
 
 func GetInstructionDebugInfo(opCode uint8, cpu CPUInterface) (*InstructionDebugInfo, error) {
@@ -47,8 +48,25 @@ func GetInstructionDebugInfo(opCode uint8, cpu CPUInterface) (*InstructionDebugI
 	info.OpCode = opCode
 	info.AddressingName = addrMode.Name
 	info.Size = addrMode.Size
-	info.Operand = addrMode.Format(addr)
+	if addrModeId == addressing.RelativeAddressing {
+		info.Operand = addrMode.Format(addr)
+	} else {
+		info.Operand = addrMode.Format(uint16(cpu.Read(addr)))
+	}
+
+	info.AddressInfo = addrDescription(addr)
 	return info, nil
+}
+
+func addrDescription(addr uint16) string {
+	desc := ""
+
+	switch addr {
+	case 0x2000:
+		desc = "PPU_CTRL_REG1"
+	}
+
+	return desc
 }
 
 func ExecuteInstruction(opCode uint8, cpu CPUInterface) error {

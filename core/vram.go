@@ -1,5 +1,7 @@
 package core
 
+import "fmt"
+
 type VRam struct {
 	patternTable [0x2000]uint8
 	palette      [0x20]uint8
@@ -68,6 +70,7 @@ func (vRam *VRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
 
 	// Sprite palette.
 	if addr >= 0x3F00 {
+		fmt.Println("writing to palette mem")
 		addr = (addr & 0x00FF) % 0x20
 
 		// https://wiki.nesdev.com/w/index.php/PPU_palettes

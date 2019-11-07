@@ -129,7 +129,7 @@ var addressingModes = map[int]*addressingMode{
 	RelativeAddressing: {
 		Name:   "REL",
 		Size:   2,
-		Format: func(address uint16) string { return fmt.Sprintf("$%02X", address) },
+		Format: func(address uint16) string { return fmt.Sprintf("$%04X", address) },
 
 		// Relative addressing - next byte after op code is an relative (-128 to 127)
 		// number that is added to the program counter.
@@ -149,7 +149,7 @@ var addressingModes = map[int]*addressingMode{
 	AbsoluteAddressing: {
 		Name:   "ABS",
 		Size:   3,
-		Format: func(address uint16) string { return fmt.Sprintf("$%04X", address) },
+		Format: func(address uint16) string { return fmt.Sprintf("$%02X", address) },
 
 		// Absolute addressing - next two bytes represents lower and higher bytes
 		// of the absolute address.
@@ -166,7 +166,7 @@ var addressingModes = map[int]*addressingMode{
 	AbsoluteXAddressing: {
 		Name:   "ABX",
 		Size:   3,
-		Format: func(address uint16) string { return fmt.Sprintf("$%04X,X", address) },
+		Format: func(address uint16) string { return fmt.Sprintf("$%02X,X", address) },
 
 		// Same as absolute addressing but with adding X register to the result
 		CalculateAddress: func(pc uint16, x, y uint8, read ReadFunction) (uint16, bool) {
@@ -186,7 +186,7 @@ var addressingModes = map[int]*addressingMode{
 	AbsoluteYAddressing: {
 		Name:   "ABY",
 		Size:   3,
-		Format: func(address uint16) string { return fmt.Sprintf("$%04X,Y", address) },
+		Format: func(address uint16) string { return fmt.Sprintf("$%02X,Y", address) },
 
 		// Same as absolute addressing but with adding X register to the result
 		CalculateAddress: func(pc uint16, x, y uint8, read ReadFunction) (uint16, bool) {
@@ -206,7 +206,7 @@ var addressingModes = map[int]*addressingMode{
 	IndirectAddressing: {
 		Name:   "IND",
 		Size:   3,
-		Format: func(address uint16) string { return fmt.Sprintf("($%04X)", address) },
+		Format: func(address uint16) string { return fmt.Sprintf("($%02X)", address) },
 
 		// Indirect addressing - something like pointers to data. There are two bytes
 		// after the op code determining when actual address to the data is stored.

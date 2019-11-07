@@ -94,6 +94,11 @@ func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.
 				}
 			}
 
+			if msg == "reset" {
+				cpu.Reset()
+				cycles = 0
+			}
+
 		default:
 		}
 
@@ -127,13 +132,16 @@ func sdlLoop(messages chan string, mux *sync.Mutex, ui *ui.UI) {
 
 					case sdl.K_SPACE:
 						messages <- "step toggle"
+
+					case sdl.K_r:
+						messages <- "reset"
 					}
 				}
 			}
 		}
 
 		ui.DrawDebugger()
-		sdl.Delay(1000 / 200)
+		sdl.Delay(1000 / 60)
 	}
 
 	messages <- "quit"
