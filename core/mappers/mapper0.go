@@ -5,6 +5,7 @@ type Mapper0 struct {
 	chrRomBanks uint8
 	prgMem      []uint8
 	chrMem      []uint8
+	sRam        [0x2000]uint8
 }
 
 func (mpr *Mapper0) Initialize(prgRomSize uint8, chrRomSize uint8, prgMem []uint8, chrMem []uint8) {
@@ -15,6 +16,10 @@ func (mpr *Mapper0) Initialize(prgRomSize uint8, chrRomSize uint8, prgMem []uint
 }
 
 func (mpr *Mapper0) Read(busId string, addr uint16, _ bool) (uint8, bool) {
+	if busId == "cpu" && addr >= 0x6000 && addr < 0x8000 {
+		return mpr.sRam[addr-0x6000], true
+	}
+
 	if busId == "cpu" && addr >= 0x8000 {
 		return mpr.prgMem[mpr.getMappedAddress(addr)], true
 	}
@@ -27,6 +32,11 @@ func (mpr *Mapper0) Read(busId string, addr uint16, _ bool) (uint8, bool) {
 }
 
 func (mpr *Mapper0) Write(busId string, addr uint16, data uint8, _ bool) bool {
+	if busId == "cpu" && addr >= 0x6000 && addr < 0x8000 {
+		mpr.sRam[addr-0x6000] = data
+		return true
+	}
+
 	if busId == "cpu" && addr >= 0x8000 {
 		mpr.prgMem[mpr.getMappedAddress(addr)] = data
 		return true
