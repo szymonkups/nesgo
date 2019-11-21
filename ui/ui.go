@@ -56,7 +56,7 @@ func (ui *UI) Destroy() {
 
 }
 
-func (ui *UI) DrawDebugger() error {
+func (ui *UI) DrawDebugger(paletteId uint8) error {
 	// Clear screen.
 	err := ui.engine.ClearScreen(0, 0, 0, 0)
 

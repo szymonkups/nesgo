@@ -23,7 +23,7 @@ func main() {
 	crt := new(core.Cartridge)
 
 	// Connect devices to CPU bus.
-	cpuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
+	cpuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it want s.
 	cpuBus.ConnectDevice(ram)
 	cpuBus.ConnectDevice(ppu)
 
@@ -48,11 +48,10 @@ func main() {
 	}
 
 	messages := make(chan string)
-	mux := new(sync.Mutex)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go cpuLoop(messages, &wg, cpu, ppu)
-	sdlLoop(messages, mux, gui)
+	sdlLoop(messages, gui)
 	wg.Wait()
 }
 
@@ -111,7 +110,7 @@ func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.
 	wg.Done()
 }
 
-func sdlLoop(messages chan string, mux *sync.Mutex, ui *ui.UI) {
+func sdlLoop(messages chan string, ui *ui.UI) {
 	running := true
 
 	for running {

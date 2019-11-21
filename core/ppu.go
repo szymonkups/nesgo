@@ -150,18 +150,17 @@ func (ppu *PPU) Write(_ string, addr uint16, data uint8, debug bool) bool {
 }
 
 func (ppu *PPU) Clock() {
-
-	// End VBlank
-	if ppu.scanLine == -1 && ppu.cycle == 1 {
-		ppu.statusRegister.SetVBlank(false)
-	}
-
 	// Start VBlank
 	if ppu.scanLine == 241 && ppu.cycle == 1 {
 		ppu.statusRegister.SetVBlank(true)
 		if ppu.ctrlRegister.NMIEnable {
 			ppu.NMI = true
 		}
+	}
+
+	// End VBlank
+	if ppu.scanLine == -1 && ppu.cycle == 1 {
+		ppu.statusRegister.SetVBlank(false)
 	}
 
 	ppu.cycle++
