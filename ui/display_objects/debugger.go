@@ -16,6 +16,9 @@ type Debugger struct {
 	paletteId uint8
 }
 
+func (d *Debugger) SetPaletteId(newId uint8) {
+	d.paletteId = newId
+}
 func (d *Debugger) Draw(e *engine.UIEngine) error {
 
 	// DRAW HEADER WITH FPS
@@ -32,7 +35,7 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	if err != nil {
 		return err
 	}
-	//
+
 	// Draw registers
 	reg := d.CPU.GetDebugInfo()
 	drawRegister16(e, "PC", reg.PC, 2, 9)
@@ -86,7 +89,7 @@ func (d *Debugger) drawPalettes(e *engine.UIEngine, x, y int32) {
 	d.drawPalette(e, "SP #2", 6, x, y+60)
 	d.drawPalette(e, "SP #3", 7, x, y+70)
 
-	e.DrawText(">", x+50+(int32(d.paletteId)*8), y+21, 0xFF, 0xFF, 0xFF, 0xFF)
+	e.DrawText(">", x+50, y+20+(int32(d.paletteId)*10), 0xFF, 0xFF, 0xFF, 0xFF)
 }
 
 func (d *Debugger) drawPalette(e *engine.UIEngine, name string, index uint8, x, y int32) {

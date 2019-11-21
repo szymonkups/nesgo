@@ -64,6 +64,7 @@ func (ui *UI) DrawDebugger(paletteId uint8) error {
 		return err
 	}
 
+	ui.debugger.SetPaletteId(paletteId)
 	ui.engine.Render(ui.debugger)
 	return nil
 }

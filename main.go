@@ -112,6 +112,7 @@ func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.
 
 func sdlLoop(messages chan string, ui *ui.UI) {
 	running := true
+	paletteId := uint8(0)
 
 	for running {
 
@@ -132,6 +133,9 @@ func sdlLoop(messages chan string, ui *ui.UI) {
 					case sdl.K_SPACE:
 						messages <- "step toggle"
 
+					case sdl.K_p:
+						paletteId = (paletteId + 1) % 8
+
 					case sdl.K_r:
 						messages <- "reset"
 					}
@@ -139,7 +143,7 @@ func sdlLoop(messages chan string, ui *ui.UI) {
 			}
 		}
 
-		ui.DrawDebugger()
+		ui.DrawDebugger(paletteId)
 		sdl.Delay(1000 / 60)
 	}
 
