@@ -12,6 +12,8 @@ type Debugger struct {
 	CPU *core.CPU
 	PPU *core.PPU
 	CRT *core.Cartridge
+
+	paletteId uint8
 }
 
 func (d *Debugger) Draw(e *engine.UIEngine) error {
@@ -47,7 +49,7 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	d.drawPalettes(e, 0, 130)
 
 	d.PPU.DrawPatternTable(0, func(x, y uint16, pixel uint8) {
-		color := d.PPU.GetColorFromPalette(0, pixel)
+		color := d.PPU.GetColorFromPalette(d.paletteId, pixel)
 		if pixel == 0 {
 			return
 		}
@@ -55,7 +57,7 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	})
 
 	d.PPU.DrawPatternTable(1, func(x, y uint16, pixel uint8) {
-		color := d.PPU.GetColorFromPalette(0, pixel)
+		color := d.PPU.GetColorFromPalette(d.paletteId, pixel)
 		if pixel == 0 {
 			return
 		}
@@ -83,6 +85,8 @@ func (d *Debugger) drawPalettes(e *engine.UIEngine, x, y int32) {
 	d.drawPalette(e, "SP #1", 5, x, y+50)
 	d.drawPalette(e, "SP #2", 6, x, y+60)
 	d.drawPalette(e, "SP #3", 7, x, y+70)
+
+	e.DrawText(">", x+50+(int32(d.paletteId)*8), y+21, 0xFF, 0xFF, 0xFF, 0xFF)
 }
 
 func (d *Debugger) drawPalette(e *engine.UIEngine, name string, index uint8, x, y int32) {

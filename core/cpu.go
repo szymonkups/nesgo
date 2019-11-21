@@ -217,7 +217,7 @@ func (cpu *CPU) handleInterrupt(addr uint16) {
 
 	// It takes 7 cycles
 	// https://wiki.nesdev.com/w/index.php/CPU_interrupts
-	cpu.cyclesLeft = 8
+	cpu.cyclesLeft = 7
 }
 
 type CPUDebugInfo struct {

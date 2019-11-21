@@ -284,7 +284,14 @@ var asl = Instruction{
 		0x1E: {addressing.AbsoluteXAddressing, 7},
 	},
 	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
-		data := cpu.Read(addr)
+		var data uint8
+
+		if addrMode == addressing.AccumulatorAddressing {
+			data = cpu.GetA()
+		} else {
+			data = cpu.Read(addr)
+		}
+
 		var res16 = uint16(data) << 1
 		flg := cpu.GetStatusFlags()
 
@@ -318,8 +325,7 @@ var and = Instruction{
 		0x31: {addressing.IndirectYAddressing, 5},
 	},
 	Handler: func(cpu CPUInterface, addr uint16, addrMode int) bool {
-		data := cpu.Read(addr)
-		newAcc := cpu.SetA(cpu.GetA() & data)
+		newAcc := cpu.SetA(cpu.GetA() & cpu.Read(addr))
 		cpu.GetStatusFlags().SetZN(newAcc)
 
 		return true
