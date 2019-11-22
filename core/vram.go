@@ -36,37 +36,19 @@ func (vRam *vRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 		addr &= 0x0FFF
 
 		if vRam.crt.GetMirroring() == MirroringVertical {
-			// TODO: this must be simplified
-			if addr <= 0x03FF {
+			if (addr <= 0x03FF) || (addr >= 0x0800 && addr <= 0x0BFF) {
 				return vRam.nameTable1[addr&0x03FF], true
 			}
 
-			if addr >= 0x0400 && addr <= 0x07FF {
+			if (addr >= 0x0400 && addr <= 0x07FF) || (addr >= 0x0C00 && addr <= 0x0FF) {
 				return vRam.nameTable2[addr&0x03FF], true
 			}
-
-			if addr >= 0x0800 && addr <= 0x0BFF {
-				return vRam.nameTable1[addr&0x03FF], true
-			}
-
-			if addr >= 0x0C00 && addr <= 0x0FFF {
-				return vRam.nameTable2[addr&0x03FF], true
-			}
-
 		} else if vRam.crt.GetMirroring() == MirroringHorizontal {
-			if addr <= 0x03FF {
+			if (addr <= 0x03FF) || (addr >= 0x0400 && addr <= 0x07FF) {
 				return vRam.nameTable1[addr&0x03FF], true
 			}
 
-			if addr >= 0x0400 && addr <= 0x07FF {
-				return vRam.nameTable1[addr&0x03FF], true
-			}
-
-			if addr >= 0x0800 && addr <= 0x0BFF {
-				return vRam.nameTable2[addr&0x03FF], true
-			}
-
-			if addr >= 0x0C00 && addr <= 0x0FFF {
+			if (addr >= 0x0800 && addr <= 0x0BFF) || addr >= 0x0C00 && addr <= 0x0FFF {
 				return vRam.nameTable2[addr&0x03FF], true
 			}
 		}
@@ -106,9 +88,25 @@ func (vRam *vRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
 		addr &= 0x0FFF
 
 		if vRam.crt.GetMirroring() == MirroringVertical {
+			if (addr <= 0x03FF) || (addr >= 0x0800 && addr <= 0x0BFF) {
+				vRam.nameTable1[addr&0x03FF] = data
+				return true
+			}
 
+			if (addr >= 0x0400 && addr <= 0x07FF) || (addr >= 0x0C00 && addr <= 0x0FF) {
+				vRam.nameTable2[addr&0x03FF] = data
+				return true
+			}
 		} else if vRam.crt.GetMirroring() == MirroringHorizontal {
+			if (addr <= 0x03FF) || (addr >= 0x0400 && addr <= 0x07FF) {
+				vRam.nameTable1[addr&0x03FF] = data
+				return true
+			}
 
+			if (addr >= 0x0800 && addr <= 0x0BFF) || addr >= 0x0C00 && addr <= 0x0FFF {
+				vRam.nameTable2[addr&0x03FF] = data
+				return true
+			}
 		}
 	}
 
