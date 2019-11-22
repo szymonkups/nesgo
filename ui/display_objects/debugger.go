@@ -64,7 +64,7 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 		if pixel == 0 {
 			return
 		}
-		e.DrawPixel(230+int32(x), 132+int32(y), pixel, color.G, color.B, 0xFF)
+		e.DrawPixel(230+int32(x), 132+int32(y), color.R, color.G, color.B, 0xFF)
 	})
 
 	return nil

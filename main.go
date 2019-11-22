@@ -18,9 +18,10 @@ func main() {
 
 	// Crate main system components: RAM, VRAM, ppu and cartridge.
 	ram := new(core.Ram)
-	vRam := new(core.VRam)
 	ppu := core.NewPPU(ppuBus)
 	crt := new(core.Cartridge)
+	// TODO: think about better separation of vRam and crt
+	vRam := core.NewVRam(crt)
 
 	// Connect devices to CPU bus.
 	cpuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it want s.
@@ -31,7 +32,7 @@ func main() {
 	ppuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
 	ppuBus.ConnectDevice(vRam)
 
-	err := crt.LoadFile("/home/szymon/Downloads/nes/smb.nes")
+	err := crt.LoadFile("/home/szymon/Downloads/nes/dk.nes")
 
 	if err != nil {
 		fmt.Printf("Could not load a file: %s.\n", err)

@@ -8,13 +8,23 @@ import (
 	"os"
 )
 
+const (
+	MirroringVertical = iota
+	MirroringHorizontal
+)
+
 type Cartridge struct {
-	mapper mappers.Mapper
-	chrMem []uint8
+	mapper    mappers.Mapper
+	chrMem    []uint8
+	mirroring uint8
 }
 
 var allMappers = map[uint8]mappers.Mapper{
 	0x00: &mappers.Mapper0{},
+}
+
+func (crt *Cartridge) GetMirroring() uint8 {
+	return crt.mirroring
 }
 
 func (crt *Cartridge) Read(busId string, addr uint16, debug bool) (uint8, bool) {
@@ -76,6 +86,12 @@ func (crt *Cartridge) LoadFile(fileName string) error {
 
 	// Mapper number is spread across flags 6 and 7
 	mapperNumber := ((header.Flags7 >> 4) << 4) | (header.Flags6 >> 4)
+
+	// Mirroring
+	crt.mirroring = MirroringHorizontal
+	if header.Flags6&0b00000001 > 0 {
+		crt.mirroring = MirroringVertical
+	}
 
 	// Load PRG ROM data
 	prgMem := make([]uint8, int(header.PrgRomBanks)*0x4000)

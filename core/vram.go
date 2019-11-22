@@ -1,9 +1,11 @@
 package core
 
-type VRam struct {
+type vRam struct {
+	crt          *Cartridge
 	patternTable [0x2000]uint8
 	palette      [0x20]uint8
-	nametable    [0x1000]uint8
+	nameTable1   [0x400]uint8
+	nameTable2   [0x400]uint8
 }
 
 var paletteMappings = map[uint16]uint16{
@@ -13,7 +15,14 @@ var paletteMappings = map[uint16]uint16{
 	0x3F1C: 0x3F0C,
 }
 
-func (vRam *VRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
+func NewVRam(crt *Cartridge) *vRam {
+	v := new(vRam)
+	v.crt = crt
+
+	return v
+}
+
+func (vRam *vRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 	// Wrap address on 0x4000
 	addr %= 0x4000
 
@@ -24,9 +33,43 @@ func (vRam *VRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 	}
 
 	if addr >= 0x2000 && addr < 0x3F00 {
-		addr = (addr - 0x2000) % 0x1000
+		addr &= 0x0FFF
 
-		return vRam.nametable[addr], true
+		if vRam.crt.GetMirroring() == MirroringVertical {
+			// TODO: this must be simplified
+			if addr <= 0x03FF {
+				return vRam.nameTable1[addr&0x03FF], true
+			}
+
+			if addr >= 0x0400 && addr <= 0x07FF {
+				return vRam.nameTable2[addr&0x03FF], true
+			}
+
+			if addr >= 0x0800 && addr <= 0x0BFF {
+				return vRam.nameTable1[addr&0x03FF], true
+			}
+
+			if addr >= 0x0C00 && addr <= 0x0FFF {
+				return vRam.nameTable2[addr&0x03FF], true
+			}
+
+		} else if vRam.crt.GetMirroring() == MirroringHorizontal {
+			if addr <= 0x03FF {
+				return vRam.nameTable1[addr&0x03FF], true
+			}
+
+			if addr >= 0x0400 && addr <= 0x07FF {
+				return vRam.nameTable1[addr&0x03FF], true
+			}
+
+			if addr >= 0x0800 && addr <= 0x0BFF {
+				return vRam.nameTable2[addr&0x03FF], true
+			}
+
+			if addr >= 0x0C00 && addr <= 0x0FFF {
+				return vRam.nameTable2[addr&0x03FF], true
+			}
+		}
 	}
 
 	// Sprite palette.
@@ -48,7 +91,7 @@ func (vRam *VRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 	return 0x00, false
 }
 
-func (vRam *VRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
+func (vRam *vRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
 	// Wrap address on 0x4000
 	addr %= 0x4000
 
@@ -60,10 +103,13 @@ func (vRam *VRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
 	}
 
 	if addr >= 0x2000 && addr < 0x3F00 {
-		addr = (addr - 0x2000) % 0x1000
-		vRam.nametable[addr] = data
+		addr &= 0x0FFF
 
-		return true
+		if vRam.crt.GetMirroring() == MirroringVertical {
+
+		} else if vRam.crt.GetMirroring() == MirroringHorizontal {
+
+		}
 	}
 
 	// Sprite palette.
