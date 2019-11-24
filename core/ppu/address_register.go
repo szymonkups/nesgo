@@ -23,6 +23,10 @@ func (addr *AddressRegister) ResetLatch() {
 	addr.latch = false
 }
 
-func (addr *AddressRegister) Increment() {
-	addr.address++
+func (addr *AddressRegister) Increment(mode bool) {
+	if mode {
+		addr.address += 32
+	} else {
+		addr.address += 1
+	}
 }

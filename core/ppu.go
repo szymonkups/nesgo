@@ -15,7 +15,10 @@ type PPU struct {
 	ctrlRegister    *ppu.ControlRegister
 	statusRegister  *ppu.StatusRegister
 	maskRegister    *ppu.MaskRegister
-	addrRegister    *ppu.AddressRegister
+	vRamAddress     *ppu.LoopyRegister
+	tRamAddress     *ppu.LoopyRegister
+	addressLatch    bool
+	fineX           uint8
 	dataBuffer      uint8
 }
 
@@ -28,17 +31,18 @@ func NewPPU(bus *bus) *PPU {
 		ctrlRegister:    new(ppu.ControlRegister),
 		statusRegister:  new(ppu.StatusRegister),
 		maskRegister:    new(ppu.MaskRegister),
-		addrRegister:    new(ppu.AddressRegister),
+		vRamAddress:     new(ppu.LoopyRegister),
+		tRamAddress:     new(ppu.LoopyRegister),
+		fineX:           0,
 		dataBuffer:      0,
 	}
 
 	newPPU.ctrlRegister.Write(0b00000000)
 	newPPU.statusRegister.Write(0b00000000)
 	newPPU.maskRegister.Write(0b00000000)
-
-	// Set two times to zero it
-	newPPU.addrRegister.Write(0b00000000)
-	newPPU.addrRegister.Write(0b00000000)
+	newPPU.vRamAddress.Write(0)
+	newPPU.tRamAddress.Write(0)
+	newPPU.addressLatch = false
 
 	return newPPU
 }
@@ -62,7 +66,7 @@ func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
 			ppu.statusRegister.SetVBlank(true)
 			toReturn := (ppu.statusRegister.Read() & 0xE0) | (ppu.dataBuffer & 0x1F)
 			ppu.statusRegister.SetVBlank(false)
-			ppu.addrRegister.ResetLatch()
+			ppu.addressLatch = false
 			return toReturn, true
 
 		case 0x03:
@@ -83,7 +87,7 @@ func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
 			return 0x00, true
 
 		case 0x07:
-			address := ppu.addrRegister.GetAddress()
+			address := ppu.vRamAddress.Read()
 
 			// Get is normally delayed by 1 cycle...
 			toReturn := ppu.dataBuffer
@@ -94,7 +98,7 @@ func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
 				toReturn = ppu.dataBuffer
 			}
 
-			ppu.addrRegister.Increment()
+			ppu.vRamAddress.Increment(ppu.ctrlRegister.GetIncrementMode())
 			return toReturn, true
 		}
 	}
@@ -112,6 +116,8 @@ func (ppu *PPU) Write(_ string, addr uint16, data uint8, debug bool) bool {
 		switch addr & 0x0007 {
 		case 0x00:
 			ppu.ctrlRegister.Write(data)
+			ppu.tRamAddress.SetNameTableX(ppu.ctrlRegister.GetNameTableX())
+			ppu.tRamAddress.SetNameTableY(ppu.ctrlRegister.GetNameTableY())
 			return true
 
 		case 0x01:
@@ -133,15 +139,33 @@ func (ppu *PPU) Write(_ string, addr uint16, data uint8, debug bool) bool {
 
 		case 0x05:
 			// Screen Scroll Offset - PPUSCROLL - write only
+			if !ppu.addressLatch {
+				ppu.fineX = data & 0x07
+				ppu.tRamAddress.SetCoarseX(data >> 3)
+				ppu.addressLatch = true
+			} else {
+				ppu.tRamAddress.SetFineY(data & 0x07)
+				ppu.tRamAddress.SetCoarseY(data >> 3)
+				ppu.addressLatch = false
+			}
 			return true
 
 		case 0x06:
-			ppu.addrRegister.Write(data)
+			tRamValue := ppu.tRamAddress.Read()
+
+			if !ppu.addressLatch {
+				ppu.tRamAddress.Write((uint16(data&0x3F) << 8) | (tRamValue & 0x00FF))
+				ppu.addressLatch = true
+			} else {
+				ppu.tRamAddress.Write((tRamValue & 0xFF00) | uint16(data))
+				ppu.vRamAddress.Write(ppu.tRamAddress.Read())
+				ppu.addressLatch = false
+			}
 			return true
 
 		case 0x07:
-			ppu.bus.Write(ppu.addrRegister.GetAddress(), data)
-			ppu.addrRegister.Increment()
+			ppu.bus.Write(ppu.vRamAddress.Read(), data)
+			ppu.vRamAddress.Increment(ppu.ctrlRegister.GetIncrementMode())
 			return true
 		}
 	}
@@ -153,7 +177,7 @@ func (ppu *PPU) Clock() {
 	// Start VBlank
 	if ppu.scanLine == 241 && ppu.cycle == 1 {
 		ppu.statusRegister.SetVBlank(true)
-		if ppu.ctrlRegister.NMIEnable {
+		if ppu.ctrlRegister.GetNMIEnable() {
 			ppu.NMI = true
 		}
 	}

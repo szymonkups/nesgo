@@ -49,14 +49,14 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	d.drawAssembly(e, 2, 21, reg.PC)
 	//
 	// Draw palettes
-	d.drawPalettes(e, 0, 130)
+	d.drawPalettes(e, 0, 105)
 
 	d.PPU.DrawPatternTable(0, func(x, y uint16, pixel uint8) {
 		color := d.PPU.GetColorFromPalette(d.paletteId, pixel)
 		if pixel == 0 {
 			return
 		}
-		e.DrawPixel(100+int32(x), 132+int32(y), color.R, color.G, color.B, 0xFF)
+		e.DrawPixel(100+int32(x), 107+int32(y), color.R, color.G, color.B, 0xFF)
 	})
 
 	d.PPU.DrawPatternTable(1, func(x, y uint16, pixel uint8) {
@@ -64,9 +64,10 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 		if pixel == 0 {
 			return
 		}
-		e.DrawPixel(230+int32(x), 132+int32(y), color.R, color.G, color.B, 0xFF)
+		e.DrawPixel(230+int32(x), 107+int32(y), color.R, color.G, color.B, 0xFF)
 	})
 
+	e.DrawRect(0, 240, 320, 240, 0, 0xff, 0, 0xFF)
 	return nil
 }
 
@@ -156,7 +157,7 @@ func (d *Debugger) drawAssembly(e *engine.UIEngine, x, y int32, startAddr uint16
 
 	clone := d.CPU.Clone()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 8; i++ {
 		info, err := d.CPU.Disassemble(addr, &clone)
 
 		if err != nil {
