@@ -51,19 +51,11 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 	// Draw palettes
 	d.drawPalettes(e, 0, 105)
 
-	d.PPU.DrawPatternTable(0, func(x, y uint16, pixel uint8) {
-		color := d.PPU.GetColorFromPalette(d.paletteId, pixel)
-		if pixel == 0 {
-			return
-		}
+	d.PPU.DrawPatternTable(0, d.paletteId, func(x, y int16, color *core.PPUColor) {
 		e.DrawPixel(100+int32(x), 107+int32(y), color.R, color.G, color.B, 0xFF)
 	})
 
-	d.PPU.DrawPatternTable(1, func(x, y uint16, pixel uint8) {
-		color := d.PPU.GetColorFromPalette(d.paletteId, pixel)
-		if pixel == 0 {
-			return
-		}
+	d.PPU.DrawPatternTable(1, d.paletteId, func(x, y int16, color *core.PPUColor) {
 		e.DrawPixel(230+int32(x), 107+int32(y), color.R, color.G, color.B, 0xFF)
 	})
 

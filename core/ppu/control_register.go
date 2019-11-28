@@ -6,6 +6,14 @@ type ControlRegister struct {
 	value uint8
 }
 
+func (ctrl *ControlRegister) GetBgPatternTableAddress() uint8 {
+	if ctrl.value&0b00010000 != 0 {
+		return 1
+	}
+
+	return 0
+}
+
 func (ctrl *ControlRegister) Write(value uint8) {
 	ctrl.value = value
 	//

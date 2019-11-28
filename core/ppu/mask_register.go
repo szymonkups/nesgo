@@ -13,6 +13,7 @@ type MaskRegister struct {
 	byteRepresentation uint8
 }
 
+// TODO: getters/setters as other registers
 func (mask *MaskRegister) Write(value uint8) {
 	mask.byteRepresentation = value
 

@@ -5,8 +5,18 @@ import (
 	"github.com/szymonkups/nesgo/core/ppu"
 )
 
+type PPUColor struct {
+	R uint8
+	G uint8
+	B uint8
+}
+
+type setPixel func(x, y int16, pixel *PPUColor)
+
 type PPU struct {
 	NMI bool
+
+	drawScreen setPixel
 
 	scanLine        int16
 	cycle           int16
@@ -20,6 +30,16 @@ type PPU struct {
 	addressLatch    bool
 	fineX           uint8
 	dataBuffer      uint8
+
+	bgNextTileId     uint8
+	bgNextTileAttrib uint8
+	bgNextTileLsb    uint8
+	bgNextTileMsb    uint8
+
+	bgShifterPatterLo uint16
+	bgShifterPatterHi uint16
+	bgShifterAttribLo uint16
+	bgShifterAttribHi uint16
 }
 
 func NewPPU(bus *bus) *PPU {
@@ -43,8 +63,13 @@ func NewPPU(bus *bus) *PPU {
 	newPPU.vRamAddress.Write(0)
 	newPPU.tRamAddress.Write(0)
 	newPPU.addressLatch = false
+	newPPU.drawScreen = nil
 
 	return newPPU
+}
+
+func (ppu *PPU) SetDrawMethod(draw setPixel) {
+	ppu.drawScreen = draw
 }
 
 func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
@@ -174,6 +199,70 @@ func (ppu *PPU) Write(_ string, addr uint16, data uint8, debug bool) bool {
 }
 
 func (ppu *PPU) Clock() {
+	// End VBlank
+	if ppu.scanLine == -1 && ppu.cycle == 1 {
+		ppu.statusRegister.SetVBlank(false)
+	}
+
+	if ppu.scanLine >= -1 && ppu.scanLine < 240 {
+		if ppu.scanLine == 0 && ppu.cycle == 0 {
+			ppu.cycle = 1
+		}
+
+		if ppu.scanLine == -1 && ppu.cycle == 1 {
+			ppu.statusRegister.SetVBlank(false)
+		}
+
+		if (ppu.cycle >= 2 && ppu.cycle < 258) || (ppu.cycle >= 321 && ppu.cycle < 338) {
+			ppu.updateShifters()
+
+			switch (ppu.cycle - 1) % 8 {
+			case 0:
+				ppu.loadBgShifters()
+				ppu.bgNextTileId = ppu.bus.Read(0x2000 | (ppu.vRamAddress.Read() & 0x0FFF))
+			case 2:
+				ppu.bgNextTileAttrib = ppu.bus.Read(
+					0x23C0 |
+						uint16(ppu.vRamAddress.GetNameTableY())<<11 |
+						uint16(ppu.vRamAddress.GetNameTableX())<<10 |
+						(uint16(ppu.vRamAddress.GetCoarseY())>>2)<<3 |
+						uint16(ppu.vRamAddress.GetCoarseX())>>2)
+
+				if ppu.vRamAddress.GetCoarseY()&0x02 != 0 {
+					ppu.bgNextTileAttrib >>= 4
+				}
+
+				if ppu.vRamAddress.GetCoarseX()&0x2 != 0 {
+					ppu.bgNextTileAttrib >>= 2
+				}
+
+				ppu.bgNextTileAttrib &= 0x03
+			case 4:
+				ppu.bgNextTileLsb = ppu.bus.Read(uint16(ppu.ctrlRegister.GetBgPatternTableAddress())<<12 + (uint16(ppu.bgNextTileId) << 4) + uint16(ppu.vRamAddress.GetFineY()))
+			case 6:
+				ppu.bgNextTileMsb = ppu.bus.Read(uint16(ppu.ctrlRegister.GetBgPatternTableAddress())<<12 + (uint16(ppu.bgNextTileId) << 4) + uint16(ppu.vRamAddress.GetFineY()) + 8)
+			case 7:
+				ppu.incrementScrollX()
+			}
+		}
+
+		if ppu.cycle == 256 {
+			ppu.incrementScrollY()
+		}
+
+		if ppu.cycle == 257 {
+			ppu.transferAddressX()
+		}
+
+		if ppu.scanLine == -1 && ppu.cycle >= 280 && ppu.cycle < 305 {
+			ppu.transferAddressY()
+		}
+	}
+
+	if ppu.scanLine == 240 {
+		// Post render scan line - skip it.
+	}
+
 	// Start VBlank
 	if ppu.scanLine == 241 && ppu.cycle == 1 {
 		ppu.statusRegister.SetVBlank(true)
@@ -182,9 +271,44 @@ func (ppu *PPU) Clock() {
 		}
 	}
 
-	// End VBlank
-	if ppu.scanLine == -1 && ppu.cycle == 1 {
-		ppu.statusRegister.SetVBlank(false)
+	// Render to the screen
+	if ppu.maskRegister.ShowBg {
+		var bitMux uint16 = 0x8000 >> ppu.fineX
+		var p0Pixel, p1Pixel uint8
+
+		if (ppu.bgShifterPatterLo & bitMux) > 0 {
+			p0Pixel = 1
+		} else {
+			p0Pixel = 0
+		}
+
+		if (ppu.bgShifterPatterHi & bitMux) > 0 {
+			p1Pixel = 1
+		} else {
+			p1Pixel = 0
+		}
+
+		pixel := (p1Pixel << 1) | p0Pixel
+
+		var pal0, pal1 uint8
+		if (ppu.bgShifterAttribLo & bitMux) > 0 {
+			pal0 = 1
+		} else {
+			pal0 = 0
+		}
+
+		if (ppu.bgShifterAttribHi & bitMux) > 0 {
+			pal1 = 1
+		} else {
+			pal1 = 0
+		}
+
+		palette := (pal1 << 1) | pal0
+
+		if ppu.drawScreen != nil {
+			ppu.drawScreen(ppu.cycle-1, ppu.scanLine, ppu.GetColorFromPalette(palette, pixel))
+		}
+
 	}
 
 	ppu.cycle++
@@ -201,13 +325,80 @@ func (ppu *PPU) Clock() {
 	}
 }
 
-func (ppu *PPU) GetPatternTables() {
+func (ppu *PPU) loadBgShifters() {
+	ppu.bgShifterPatterLo = (ppu.bgShifterPatterLo & 0xFF00) | uint16(ppu.bgNextTileLsb)
+	ppu.bgShifterPatterHi = (ppu.bgShifterPatterHi & 0xFF00) | uint16(ppu.bgNextTileMsb)
+
+	if ppu.bgNextTileAttrib&0b01 > 0 {
+		ppu.bgShifterAttribLo = (ppu.bgShifterAttribLo & 0xFF00) | 0xFF
+	} else {
+		ppu.bgShifterAttribLo = (ppu.bgShifterAttribLo & 0xFF00) | 0x00
+	}
+
+	if ppu.bgNextTileAttrib&0b10 > 0 {
+		ppu.bgShifterAttribHi = (ppu.bgShifterAttribHi & 0xFF00) | 0xFF
+	} else {
+		ppu.bgShifterAttribHi = (ppu.bgShifterAttribHi & 0xFF00) | 0x00
+	}
 }
 
-type PPUColor struct {
-	R uint8
-	G uint8
-	B uint8
+func (ppu *PPU) updateShifters() {
+	if ppu.maskRegister.ShowBg {
+		ppu.bgShifterPatterLo <<= 1
+		ppu.bgShifterPatterHi <<= 1
+
+		ppu.bgShifterAttribLo <<= 1
+		ppu.bgShifterAttribHi <<= 1
+	}
+}
+
+func (ppu *PPU) incrementScrollX() {
+	if ppu.maskRegister.ShowBg || ppu.maskRegister.ShowSprites {
+		coarseX := ppu.vRamAddress.GetCoarseX()
+
+		if coarseX == 31 {
+			ppu.vRamAddress.SetCoarseX(0)
+			ppu.vRamAddress.SetNameTableX(^ppu.vRamAddress.GetNameTableX())
+		} else {
+			ppu.vRamAddress.SetCoarseX(coarseX + 1)
+		}
+	}
+}
+
+func (ppu *PPU) incrementScrollY() {
+	if ppu.maskRegister.ShowBg || ppu.maskRegister.ShowSprites {
+		fineY := ppu.vRamAddress.GetFineY()
+		if fineY < 7 {
+			ppu.vRamAddress.SetFineY(fineY + 1)
+		} else {
+			ppu.vRamAddress.SetFineY(0)
+
+			coarseY := ppu.vRamAddress.GetCoarseY()
+			if coarseY == 29 {
+				ppu.vRamAddress.SetCoarseY(0)
+				ppu.vRamAddress.SetNameTableY(^ppu.vRamAddress.GetNameTableY())
+			} else if coarseY == 31 {
+				ppu.vRamAddress.SetCoarseY(0)
+			} else {
+				ppu.vRamAddress.SetCoarseY(coarseY + 1)
+			}
+		}
+	}
+}
+
+func (ppu *PPU) transferAddressX() {
+	if ppu.maskRegister.ShowBg || ppu.maskRegister.ShowSprites {
+		ppu.vRamAddress.SetNameTableX(ppu.tRamAddress.GetNameTableX())
+		ppu.vRamAddress.SetCoarseX(ppu.tRamAddress.GetCoarseX())
+	}
+}
+
+func (ppu *PPU) transferAddressY() {
+	if ppu.maskRegister.ShowBg || ppu.maskRegister.ShowSprites {
+		ppu.vRamAddress.SetFineY(ppu.tRamAddress.GetFineY())
+		ppu.vRamAddress.SetNameTableY(ppu.tRamAddress.GetNameTableY())
+		ppu.vRamAddress.SetCoarseY(ppu.tRamAddress.GetCoarseY())
+	}
 }
 
 func (ppu *PPU) GetUniversalBGColor() *PPUColor {
@@ -232,9 +423,7 @@ func (ppu *PPU) GetColorFromPalette(palette, pixel uint8) *PPUColor {
 	return colorTable[data]
 }
 
-type setPixel func(x, y uint16, pixel uint8)
-
-func (ppu *PPU) DrawPatternTable(i uint16, draw setPixel) {
+func (ppu *PPU) DrawPatternTable(i uint16, paletteId uint8, draw setPixel) {
 	for tileY := uint16(0); tileY < 16; tileY++ {
 		for tileX := uint16(0); tileX < 16; tileX++ {
 			// Convert x,y to linear offset
@@ -249,7 +438,7 @@ func (ppu *PPU) DrawPatternTable(i uint16, draw setPixel) {
 
 					tileLSB >>= 1
 					tileMSB >>= 1
-					draw(tileX*8+(7-col), tileY*8+row, pixel)
+					draw(int16(tileX*8+(7-col)), int16(tileY*8+row), ppu.GetColorFromPalette(paletteId, pixel))
 				}
 			}
 		}

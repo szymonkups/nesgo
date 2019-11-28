@@ -57,7 +57,7 @@ func (ui *UI) Destroy() {
 }
 
 func (ui *UI) DrawDebugger(paletteId uint8) error {
-	// Clear screen.
+	//Clear screen.
 	err := ui.engine.ClearScreen(0, 0, 0, 0)
 
 	if err != nil {
@@ -65,6 +65,27 @@ func (ui *UI) DrawDebugger(paletteId uint8) error {
 	}
 
 	ui.debugger.SetPaletteId(paletteId)
+	ui.engine.DrawRect(0, 0, 200, 200, 255, 0, 0, 255)
 	ui.engine.Render(ui.debugger)
+	return nil
+}
+
+func (ui *UI) DrawScreen(data [500][500]core.PPUColor) error {
+	//Clear screen.
+	err := ui.engine.ClearScreen(0, 0, 0, 0)
+
+	if err != nil {
+		return err
+	}
+
+	for x := int32(0); x < 500; x++ {
+		for y := int32(0); y < 500; y++ {
+			color := data[x][y]
+			ui.engine.DrawPixel(x, y+240, color.R, color.G, color.B, 0xFF)
+		}
+	}
+
+	ui.engine.Render(ui.debugger)
+	ui.engine.Present()
 	return nil
 }

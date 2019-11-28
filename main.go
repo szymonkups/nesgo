@@ -32,7 +32,7 @@ func main() {
 	ppuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
 	ppuBus.ConnectDevice(vRam)
 
-	err := crt.LoadFile("/home/szymon/Downloads/nes/nestest.nes")
+	err := crt.LoadFile("/home/szymon/Downloads/nes/dk.nes")
 
 	if err != nil {
 		fmt.Printf("Could not load a file: %s.\n", err)
@@ -56,10 +56,23 @@ func main() {
 	wg.Wait()
 }
 
+var mutex = &sync.Mutex{}
+var screen [500][500]core.PPUColor = [500][500]core.PPUColor{}
+
 func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.PPU) {
 	cycles := 0
 	running := true
 	stepMode := true
+
+	ppu.SetDrawMethod(func(x, y int16, pixel *core.PPUColor) {
+		if x == -1 || y == -1 {
+			return
+		}
+
+		mutex.Lock()
+		screen[x][y] = *pixel
+		mutex.Unlock()
+	})
 
 	tick := func() {
 		ppu.Clock()
@@ -106,6 +119,7 @@ func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.
 			tick()
 		}
 
+		//time.Sleep(1000 / 30)
 	}
 
 	wg.Done()
@@ -116,7 +130,6 @@ func sdlLoop(messages chan string, ui *ui.UI) {
 	paletteId := uint8(0)
 
 	for running {
-
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch t := event.(type) {
 			case *sdl.QuitEvent:
@@ -144,7 +157,9 @@ func sdlLoop(messages chan string, ui *ui.UI) {
 			}
 		}
 
-		ui.DrawDebugger(paletteId)
+		mutex.Lock()
+		ui.DrawScreen(screen)
+		mutex.Unlock()
 		sdl.Delay(1000 / 60)
 	}
 

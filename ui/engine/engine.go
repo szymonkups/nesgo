@@ -136,6 +136,10 @@ func (ui *UIEngine) Render(root Displayable) {
 	ui.renderer.Present()
 }
 
+func (ui *UIEngine) Present() {
+	ui.renderer.Present()
+}
+
 func (ui *UIEngine) DrawRect(x, y, w, h int32, r, g, b, a uint8) {
 	rect := sdl.Rect{X: x, Y: y, W: w, H: h}
 	ui.renderer.SetDrawColor(r, g, b, a)
