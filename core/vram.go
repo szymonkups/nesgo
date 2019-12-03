@@ -8,13 +8,6 @@ type vRam struct {
 	nameTable2   [0x400]uint8
 }
 
-var paletteMappings = map[uint16]uint16{
-	0x3F10: 0x3F00,
-	0x3F14: 0x3F04,
-	0x3F18: 0x3F08,
-	0x3F1C: 0x3F0C,
-}
-
 func NewVRam(crt *Cartridge) *vRam {
 	v := new(vRam)
 	v.crt = crt
@@ -60,11 +53,7 @@ func (vRam *vRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 		// Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C.
 		// Note that this goes for writing as well as reading. A symptom of not having implemented this correctly
 		// in an emulator is the sky being black in Super Mario Bros., which writes the backdrop color through $3F10.
-		mapping, ok := paletteMappings[addr]
-		if ok {
-			addr = mapping
-		}
-
+		addr = mapPalette(addr)
 		addr = (addr & 0x00FF) % 0x20
 
 		return vRam.palette[addr], true
@@ -116,10 +105,7 @@ func (vRam *vRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
 		// Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C.
 		// Note that this goes for writing as well as reading. A symptom of not having implemented this correctly
 		// in an emulator is the sky being black in Super Mario Bros., which writes the backdrop color through $3F10.
-		mapping, ok := paletteMappings[addr]
-		if ok {
-			addr = mapping
-		}
+		addr = mapPalette(addr)
 
 		addr = (addr & 0x00FF) % 0x20
 		vRam.palette[addr] = data
@@ -128,4 +114,19 @@ func (vRam *vRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
 	}
 
 	return false
+}
+
+func mapPalette(addr uint16) uint16 {
+	switch addr {
+	case 0x3F10:
+		return 0x3F00
+	case 0x3F14:
+		return 0x3F04
+	case 0x3F18:
+		return 0x3F08
+	case 0x3F1C:
+		return 0x3F0C
+	}
+
+	return addr
 }

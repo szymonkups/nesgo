@@ -40,7 +40,7 @@ func (ui *UIEngine) CreateWindow(w int32, h int32, logicalW int32, logicalH int3
 
 	ui.window = window
 
-	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
+	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_SOFTWARE)
 
 	if err != nil {
 		return err

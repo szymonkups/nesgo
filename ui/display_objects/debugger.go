@@ -36,30 +36,30 @@ func (d *Debugger) Draw(e *engine.UIEngine) error {
 		return err
 	}
 
-	// Draw registers
-	reg := d.CPU.GetDebugInfo()
-	drawRegister16(e, "PC", reg.PC, 2, 9)
-	drawRegister8(e, "SP", reg.SP, 63, 9)
-	drawRegister8(e, "A", reg.A, 108, 9)
-	drawRegister8(e, "X", reg.X, 145, 9)
-	drawRegister8(e, "Y", reg.Y, 182, 9)
-	drawFlags8(e, "NV--DIZC", reg.P, 219, 9)
-
-	// Draw current memory range
-	d.drawAssembly(e, 2, 21, reg.PC)
+	//// Draw registers
+	//reg := d.CPU.GetDebugInfo()
+	//drawRegister16(e, "PC", reg.PC, 2, 9)
+	//drawRegister8(e, "SP", reg.SP, 63, 9)
+	//drawRegister8(e, "A", reg.A, 108, 9)
+	//drawRegister8(e, "X", reg.X, 145, 9)
+	//drawRegister8(e, "Y", reg.Y, 182, 9)
+	//drawFlags8(e, "NV--DIZC", reg.P, 219, 9)
 	//
-	// Draw palettes
-	d.drawPalettes(e, 0, 105)
-
-	d.PPU.DrawPatternTable(0, d.paletteId, func(x, y int16, color *core.PPUColor) {
-		e.DrawPixel(100+int32(x), 107+int32(y), color.R, color.G, color.B, 0xFF)
-	})
-
-	d.PPU.DrawPatternTable(1, d.paletteId, func(x, y int16, color *core.PPUColor) {
-		e.DrawPixel(230+int32(x), 107+int32(y), color.R, color.G, color.B, 0xFF)
-	})
-
-	e.DrawRect(0, 240, 320, 240, 0, 0xff, 0, 0xFF)
+	//// Draw current memory range
+	//d.drawAssembly(e, 2, 21, reg.PC)
+	////
+	//// Draw palettes
+	//d.drawPalettes(e, 0, 105)
+	//
+	//d.PPU.DrawPatternTable(0, d.paletteId, func(x, y int16, color *core.PPUColor) {
+	//	e.DrawPixel(100+int32(x), 107+int32(y), color.R, color.G, color.B, 0xFF)
+	//})
+	//
+	//d.PPU.DrawPatternTable(1, d.paletteId, func(x, y int16, color *core.PPUColor) {
+	//	e.DrawPixel(230+int32(x), 107+int32(y), color.R, color.G, color.B, 0xFF)
+	//})
+	//
+	//e.DrawRect(0, 240, 320, 240, 0, 0xff, 0, 0xFF)
 	return nil
 }
 

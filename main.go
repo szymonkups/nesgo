@@ -2,20 +2,37 @@ package main
 
 import (
 	"fmt"
+	//"github.com/pkg/profile"
 	"github.com/szymonkups/nesgo/core"
 	"github.com/szymonkups/nesgo/ui"
 	"github.com/veandco/go-sdl2/sdl"
 	"os"
 )
 
+const (
+	screenFPS           uint32 = 60
+	screenTicksPerFrame        = 1000 / screenFPS
+)
+
+//func main() {
+//	p := profile.Start()
+//	// os.Exit(..) must run AFTER sdl.Main(..) below; so keep track of exit
+//	// status manually outside the closure passed into sdl.Main(..) below
+//	var exitcode int
+//	sdl.Main(func() {
+//		exitcode = run()
+//	})
+//
+//	p.Stop()
+//	// os.Exit(..) must run here! If run in sdl.Main(..) above, it will cause
+//	// premature quitting of sdl.Main(..) function; resource cleaning deferred
+//	// calls/closing of channels may never run
+//	os.Exit(exitcode)
+//}
+
 func main() {
-	//sdl.Main(run)
-	//
+	// CPU profiling by default
 
-	run()
-}
-
-func run() {
 	// Create two main buses:
 	// 1. CPU bus where RAM, ppu and cartridge are connected and used by CPU,
 	// 2. ppu bus where cartridge is connected and used by ppu.
@@ -48,9 +65,11 @@ func run() {
 	}
 
 	cpu := core.NewCPU(cpuBus)
-	gui := new(ui.UI)
 
+	var gui *ui.UI
+	gui = new(ui.UI)
 	err = gui.Init(cpu, ppu, crt)
+
 	if err != nil {
 		panic(err)
 	}
@@ -58,6 +77,11 @@ func run() {
 	cycles := 0
 	running := true
 	stepMode := false
+	fpsTimer := new(SDLTimer)
+	capTimer := new(SDLTimer)
+	countedFrames := uint32(0)
+	fpsTimer.Start()
+
 	//paletteId := uint8(0)
 
 	tick := func() {
@@ -87,7 +111,16 @@ func run() {
 	})
 
 	for running {
-		startTime := sdl.GetTicks()
+		// Timer for FPS cap
+		capTimer.Start()
+
+		//Calculate and correct FPS
+		avgFPS := float32(countedFrames) / (float32(fpsTimer.GetTicks()) / 1000)
+
+		if avgFPS > 2000000 {
+			avgFPS = 0
+		}
+
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch t := event.(type) {
 			case *sdl.QuitEvent:
@@ -140,15 +173,77 @@ func run() {
 			}
 
 			ppu.IsFrameComplete = false
-
 		}
 
 		gui.DrawScreen(screen)
-		diff := sdl.GetTicks() - startTime
-		fmt.Println(1000/60, diff)
-		//if diff < 1000/60 {
-		//	sdl.Delay(1000/60 - diff)
-		//}
+		fmt.Println("FPS: ", avgFPS)
+		countedFrames++
 
+		//If frame finished early
+		frameTicks := capTimer.GetTicks()
+		if frameTicks < screenTicksPerFrame {
+			//Wait remaining time
+			sdl.Delay(screenTicksPerFrame - frameTicks)
+		}
 	}
+}
+
+// Kudos to https://lazyfoo.net/tutorials/SDL/23_advanced_timers/index.php
+type SDLTimer struct {
+	startTicks  uint32
+	pausedTicks uint32
+	paused      bool
+	started     bool
+}
+
+func (t *SDLTimer) Start() {
+	t.started = true
+	t.paused = false
+	t.startTicks = sdl.GetTicks()
+	t.pausedTicks = 0
+}
+
+func (t *SDLTimer) Stop() {
+	t.started = false
+	t.paused = false
+	t.startTicks = 0
+	t.pausedTicks = 0
+}
+
+func (t *SDLTimer) Pause() {
+	if t.started && !t.paused {
+		t.paused = true
+		t.pausedTicks = sdl.GetTicks() - t.startTicks
+		t.startTicks = 0
+	}
+}
+
+func (t *SDLTimer) Unpause() {
+	if t.started && t.paused {
+		t.paused = false
+		t.startTicks = sdl.GetTicks() - t.pausedTicks
+		t.pausedTicks = 0
+	}
+}
+
+func (t *SDLTimer) GetTicks() uint32 {
+	time := uint32(0)
+
+	if t.started {
+		if t.paused {
+			time = t.pausedTicks
+		} else {
+			time = sdl.GetTicks() - t.startTicks
+		}
+	}
+
+	return time
+}
+
+func (t *SDLTimer) IsStarted() bool {
+	return t.started
+}
+
+func (t *SDLTimer) IsPaused() bool {
+	return t.paused && t.started
 }
