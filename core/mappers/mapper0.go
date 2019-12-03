@@ -12,7 +12,13 @@ func (mpr *Mapper0) Initialize(prgRomSize uint8, chrRomSize uint8, prgMem []uint
 	mpr.prgRomBanks = prgRomSize
 	mpr.chrRomBanks = chrRomSize
 	mpr.prgMem = prgMem
-	mpr.chrMem = chrMem
+
+	if chrRomSize > 0 {
+		mpr.chrMem = chrMem
+	} else {
+		mpr.chrMem = make([]uint8, 0x2000)
+	}
+
 }
 
 func (mpr *Mapper0) Read(busId string, addr uint16, _ bool) (uint8, bool) {

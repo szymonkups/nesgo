@@ -12,8 +12,8 @@ type UIEngine struct {
 	window       *sdl.Window
 	renderer     *sdl.Renderer
 	fontTextures map[string]*sdl.Texture
-	texture      *sdl.Texture
 	FPS          uint32
+	screen       *sdl.Texture
 }
 
 func (ui *UIEngine) Init() error {
@@ -58,15 +58,12 @@ func (ui *UIEngine) CreateWindow(w int32, h int32, logicalW int32, logicalH int3
 		return err
 	}
 
-	ui.renderer = renderer
-
-	texture, err := renderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, logicalW, logicalH)
-
+	ui.screen, err = renderer.CreateTexture(sdl.PIXELFORMAT_ARGB8888, sdl.TEXTUREACCESS_STREAMING, 320, 240)
 	if err != nil {
 		return err
 	}
 
-	ui.texture = texture
+	ui.renderer = renderer
 
 	return nil
 }
@@ -120,6 +117,16 @@ func (ui *UIEngine) ClearScreen(r, g, b, a uint8) error {
 
 	return nil
 }
+func (ui *UIEngine) SetScreenPixels(data []byte) {
+	updateRect := &sdl.Rect{
+		X: 0,
+		Y: 0,
+		W: 256,
+		H: 240,
+	}
+
+	ui.screen.Update(updateRect, data, 256*4)
+}
 
 func (ui *UIEngine) Render(root Displayable) {
 	fps, isData := utils.CalculateFPS()
@@ -130,9 +137,25 @@ func (ui *UIEngine) Render(root Displayable) {
 		ui.FPS = 0
 	}
 
-	root.Draw(ui)
+	src := &sdl.Rect{
+		X: 0,
+		Y: 0,
+		W: 320,
+		H: 240,
+	}
 
+	dst := &sdl.Rect{
+		X: 0,
+		Y: 0,
+		W: 320 * 2,
+		H: 240 * 2,
+	}
+
+	ui.renderer.Copy(ui.screen, src, dst)
+
+	root.Draw(ui)
 	ui.renderChildren(root.GetChildren())
+
 	ui.renderer.Present()
 }
 

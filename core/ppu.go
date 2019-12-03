@@ -18,9 +18,10 @@ type PPU struct {
 
 	drawScreen setPixel
 
-	scanLine        int16
-	cycle           int16
-	isFrameComplete bool
+	scanLine int16
+	cycle    int16
+	// TODO: just for debugging purposes
+	IsFrameComplete bool
 	bus             *bus
 	ctrlRegister    *ppu.ControlRegister
 	statusRegister  *ppu.StatusRegister
@@ -46,7 +47,7 @@ func NewPPU(bus *bus) *PPU {
 	newPPU := &PPU{
 		scanLine:        -1,
 		cycle:           0,
-		isFrameComplete: false,
+		IsFrameComplete: false,
 		bus:             bus,
 		ctrlRegister:    new(ppu.ControlRegister),
 		statusRegister:  new(ppu.StatusRegister),
@@ -70,6 +71,10 @@ func NewPPU(bus *bus) *PPU {
 
 func (ppu *PPU) SetDrawMethod(draw setPixel) {
 	ppu.drawScreen = draw
+}
+
+func (ppu *PPU) GetCurrentScanLine() int16 {
+	return ppu.scanLine
 }
 
 func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
@@ -120,6 +125,14 @@ func (ppu *PPU) Read(_ string, addr uint16, debug bool) (uint8, bool) {
 
 			// ...until we read from palette memory
 			if address >= 0x3f00 {
+				// https://forums.nesdev.com/viewtopic.php?p=4609#p4609
+				// "When you read PPU $3F00-$3FFF, you get immediate data from Palette RAM (without the 1-read delay
+				// usually present when reading from VRAM) and the PPU will also fetch nametable data from the
+				// corresponding address (which is mirrored from PPU $2F00-$2FFF).
+				// This phenomenon does not occur during writes (as it would result in corrupting the contents
+				// of the nametables when writing to the palette) and only happens during reading
+				// (since it has no noticeable side effects).
+				ppu.dataBuffer = ppu.bus.Read(address - 0x1000)
 				toReturn = ppu.dataBuffer
 			}
 
@@ -305,7 +318,7 @@ func (ppu *PPU) Clock() {
 
 		palette := (pal1 << 1) | pal0
 
-		if ppu.drawScreen != nil {
+		if ppu.drawScreen != nil && ppu.cycle-1 > -1 && ppu.scanLine > -1 {
 			ppu.drawScreen(ppu.cycle-1, ppu.scanLine, ppu.GetColorFromPalette(palette, pixel))
 		}
 
@@ -320,7 +333,7 @@ func (ppu *PPU) Clock() {
 		// We have 240 lines on screen but it goes above that to 261 (240 - 261 is called VBlank)
 		if ppu.scanLine >= 261 {
 			ppu.scanLine = -1
-			ppu.isFrameComplete = true
+			ppu.IsFrameComplete = true
 		}
 	}
 }

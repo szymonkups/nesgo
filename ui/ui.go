@@ -70,7 +70,7 @@ func (ui *UI) DrawDebugger(paletteId uint8) error {
 	return nil
 }
 
-func (ui *UI) DrawScreen(data [500][500]core.PPUColor) error {
+func (ui *UI) DrawScreen(screen []byte) error {
 	//Clear screen.
 	err := ui.engine.ClearScreen(0, 0, 0, 0)
 
@@ -78,13 +78,7 @@ func (ui *UI) DrawScreen(data [500][500]core.PPUColor) error {
 		return err
 	}
 
-	for x := int32(0); x < 500; x++ {
-		for y := int32(0); y < 500; y++ {
-			color := data[x][y]
-			ui.engine.DrawPixel(x, y+240, color.R, color.G, color.B, 0xFF)
-		}
-	}
-
+	ui.engine.SetScreenPixels(screen)
 	ui.engine.Render(ui.debugger)
 	ui.engine.Present()
 	return nil

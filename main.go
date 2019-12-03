@@ -6,10 +6,16 @@ import (
 	"github.com/szymonkups/nesgo/ui"
 	"github.com/veandco/go-sdl2/sdl"
 	"os"
-	"sync"
 )
 
 func main() {
+	//sdl.Main(run)
+	//
+
+	run()
+}
+
+func run() {
 	// Create two main buses:
 	// 1. CPU bus where RAM, ppu and cartridge are connected and used by CPU,
 	// 2. ppu bus where cartridge is connected and used by ppu.
@@ -22,11 +28,13 @@ func main() {
 	crt := new(core.Cartridge)
 	// TODO: think about better separation of vRam and crt
 	vRam := core.NewVRam(crt)
+	controller := new(core.Controller)
 
 	// Connect devices to CPU bus.
 	cpuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it want s.
 	cpuBus.ConnectDevice(ram)
 	cpuBus.ConnectDevice(ppu)
+	cpuBus.ConnectDevice(controller)
 
 	// Connect devices to PPU bus.
 	ppuBus.ConnectDevice(crt) // This must be first to allow grab any address and map it as it wants.
@@ -43,36 +51,14 @@ func main() {
 	gui := new(ui.UI)
 
 	err = gui.Init(cpu, ppu, crt)
-
 	if err != nil {
 		panic(err)
 	}
 
-	messages := make(chan string)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go cpuLoop(messages, &wg, cpu, ppu)
-	sdlLoop(messages, gui)
-	wg.Wait()
-}
-
-var mutex = &sync.Mutex{}
-var screen [500][500]core.PPUColor = [500][500]core.PPUColor{}
-
-func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.PPU) {
 	cycles := 0
 	running := true
-	stepMode := true
-
-	ppu.SetDrawMethod(func(x, y int16, pixel *core.PPUColor) {
-		if x == -1 || y == -1 {
-			return
-		}
-
-		mutex.Lock()
-		screen[x][y] = *pixel
-		mutex.Unlock()
-	})
+	stepMode := false
+	//paletteId := uint8(0)
 
 	tick := func() {
 		ppu.Clock()
@@ -87,49 +73,21 @@ func cpuLoop(messages chan string, wg *sync.WaitGroup, cpu *core.CPU, ppu *core.
 		}
 	}
 
-	for running {
-		select {
-		case msg := <-messages:
-			if msg == "quit" {
-				running = false
-			}
-
-			if msg == "step toggle" {
-				stepMode = !stepMode
-			}
-
-			if msg == "step" {
-				for {
-					tick()
-					if cpu.GetCyclesLeft() == 0 && cycles%3 == 0 {
-						break
-					}
-				}
-			}
-
-			if msg == "reset" {
-				cpu.Reset()
-				cycles = 0
-			}
-
-		default:
+	screen := make([]uint8, 256*240*4)
+	ppu.SetDrawMethod(func(x, y int16, pixel *core.PPUColor) {
+		if x >= 256 || y >= 240 {
+			return
 		}
 
-		if !stepMode {
-			tick()
-		}
-
-		//time.Sleep(1000 / 30)
-	}
-
-	wg.Done()
-}
-
-func sdlLoop(messages chan string, ui *ui.UI) {
-	running := true
-	paletteId := uint8(0)
+		offset := (256 * 4 * int32(y)) + int32(x)*4
+		screen[offset+0] = pixel.B
+		screen[offset+1] = pixel.G
+		screen[offset+2] = pixel.R
+		screen[offset+3] = 0xFF
+	})
 
 	for running {
+		startTime := sdl.GetTicks()
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch t := event.(type) {
 			case *sdl.QuitEvent:
@@ -140,28 +98,57 @@ func sdlLoop(messages chan string, ui *ui.UI) {
 					switch t.Keysym.Sym {
 					case sdl.K_ESCAPE:
 						running = false
-
+					//
+					//case sdl.K_RETURN:
+					//	messages <- "step"
+					//
 					case sdl.K_RETURN:
-						messages <- "step"
-
+						controller.PressButton(core.ButtonStart)
 					case sdl.K_SPACE:
-						messages <- "step toggle"
+						controller.PressButton(core.ButtonSelect)
+					case sdl.K_UP:
+						controller.PressButton(core.ButtonUp)
+					case sdl.K_DOWN:
+						controller.PressButton(core.ButtonDown)
 
-					case sdl.K_p:
-						paletteId = (paletteId + 1) % 8
+						//case sdl.K_p:
+						//	paletteId = (paletteId + 1) % 8
+						//
+						//case sdl.K_r:
+						//	messages <- "reset"
+					}
+				}
 
-					case sdl.K_r:
-						messages <- "reset"
+				if t.GetType() == sdl.KEYUP {
+					switch t.Keysym.Sym {
+					case sdl.K_SPACE:
+						controller.ReleaseButton(core.ButtonSelect)
+					case sdl.K_RETURN:
+						controller.ReleaseButton(core.ButtonStart)
+					case sdl.K_UP:
+						controller.ReleaseButton(core.ButtonUp)
+					case sdl.K_DOWN:
+						controller.ReleaseButton(core.ButtonDown)
 					}
 				}
 			}
 		}
 
-		mutex.Lock()
-		ui.DrawScreen(screen)
-		mutex.Unlock()
-		sdl.Delay(1000 / 60)
-	}
+		if !stepMode {
+			for !ppu.IsFrameComplete {
+				tick()
+			}
 
-	messages <- "quit"
+			ppu.IsFrameComplete = false
+
+		}
+
+		gui.DrawScreen(screen)
+		diff := sdl.GetTicks() - startTime
+		fmt.Println(1000/60, diff)
+		//if diff < 1000/60 {
+		//	sdl.Delay(1000/60 - diff)
+		//}
+
+	}
 }

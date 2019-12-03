@@ -56,8 +56,6 @@ func (vRam *vRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 
 	// Sprite palette.
 	if addr >= 0x3F00 {
-		addr = (addr & 0x00FF) % 0x20
-
 		// https://wiki.nesdev.com/w/index.php/PPU_palettes
 		// Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C.
 		// Note that this goes for writing as well as reading. A symptom of not having implemented this correctly
@@ -66,6 +64,8 @@ func (vRam *vRam) Read(_ string, addr uint16, _ bool) (uint8, bool) {
 		if ok {
 			addr = mapping
 		}
+
+		addr = (addr & 0x00FF) % 0x20
 
 		return vRam.palette[addr], true
 	}
@@ -112,8 +112,6 @@ func (vRam *vRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
 
 	// Sprite palette.
 	if addr >= 0x3F00 {
-		addr = (addr & 0x00FF) % 0x20
-
 		// https://wiki.nesdev.com/w/index.php/PPU_palettes
 		// Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C.
 		// Note that this goes for writing as well as reading. A symptom of not having implemented this correctly
@@ -123,6 +121,7 @@ func (vRam *vRam) Write(_ string, addr uint16, data uint8, _ bool) bool {
 			addr = mapping
 		}
 
+		addr = (addr & 0x00FF) % 0x20
 		vRam.palette[addr] = data
 
 		return true
