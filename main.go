@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/pkg/profile"
+
 	//"github.com/pkg/profile"
 	"github.com/szymonkups/nesgo/core"
 	"github.com/szymonkups/nesgo/ui"
@@ -32,6 +34,7 @@ const (
 
 func main() {
 	// CPU profiling by default
+	defer profile.Start().Stop()
 
 	// Create two main buses:
 	// 1. CPU bus where RAM, ppu and cartridge are connected and used by CPU,
