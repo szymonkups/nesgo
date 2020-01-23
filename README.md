@@ -1,5 +1,5 @@
 # nesgo
-NES emulator written in Go. Under heavy development. Inspired by great NES tutorial by [javidx](https://www.youtube.com/watch?v=F8kx56OZQhg).
+NES emulator fun written in Go. Inspired by great NES tutorial by [javidx](https://www.youtube.com/watch?v=F8kx56OZQhg).
 More like a fun project to learn Go an NES internals without a goal to create a full featured emulator.
 
 ## References
@@ -9,3 +9,8 @@ Other sources:
 * http://www.fceux.com/web/help/Intro.html
 * http://6502.org/
 * ...and many others
+
+## Current status
+CPU, PPU support, background rendering, mapper 0 only for now.
+
+![Kong](https://github.com/szymonkups/nesgo/blob/master/assets/kong.gif?raw=true)

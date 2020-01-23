@@ -186,7 +186,7 @@ func main() {
 		frameTicks := capTimer.GetTicks()
 		if frameTicks < screenTicksPerFrame {
 			//Wait remaining time
-			sdl.Delay(screenTicksPerFrame - frameTicks)
+			//sdl.Delay(screenTicksPerFrame - frameTicks)
 		}
 	}
 }
