@@ -1,6 +1,6 @@
 # nesgo
 NES emulator fun written in Go. Inspired by great NES tutorial by [javidx](https://www.youtube.com/watch?v=F8kx56OZQhg).
-More like a fun project to learn Go an NES internals without a goal to create a full featured emulator.
+More like a fun project to learn Go and NES internals without a goal to create a full featured emulator.
 
 ## References
 This couldn't happened without great documentation provided by 
